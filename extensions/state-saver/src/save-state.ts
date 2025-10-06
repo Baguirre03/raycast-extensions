@@ -17,9 +17,21 @@ export default async function Command() {
 
   try {
     let urls: string[] = [];
-    let sessions: TerminalSession[] = [];
+    let terminalSessions: TerminalSession[] = [];
+    let iterm2Sessions: TerminalSession[] = [];
+    let ghosttySessions: TerminalSession[] = [];
     const openApps = await getOpenApps();
     console.log("Open apps:", openApps);
+
+    // Filter apps to save (exclude system apps, only save user apps)
+    const appsToSave = openApps.filter((app) => {
+      return [
+        OpenApps.Obsidian,
+        OpenApps.Spotify,
+        OpenApps.Slack,
+        // Add more apps you want to restore
+      ].includes(app as OpenApps);
+    });
 
     if (openApps.includes(OpenApps.Chrome)) {
       // Capture Chrome tabs
@@ -31,21 +43,32 @@ export default async function Command() {
     if (openApps.includes(OpenApps.Terminal)) {
       toast.title = "Capturing Terminal sessions...";
       const openSessionsString = await getTerminalSessions("Terminal");
-      sessions = parseTerminalSessions(openSessionsString);
+      terminalSessions = parseTerminalSessions(openSessionsString);
+    }
+
+    if (openApps.includes(OpenApps.ITerm)) {
+      toast.title = "Capturing iTerm2 sessions...";
+      const openSessionsString = await getTerminalSessions("iTerm2");
+      iterm2Sessions = parseTerminalSessions(openSessionsString);
+    }
+
+    if (openApps.includes(OpenApps.Ghostyy)) {
+      toast.title = "Capturing Ghostty sessions...";
+      const openSessionsString = await getTerminalSessions("ghostty");
+      ghosttySessions = parseTerminalSessions(openSessionsString);
     }
 
     // Save the snapshot
     toast.title = "Saving snapshot...";
     await saveStateSnapshot({
       name: `Snapshot ${Date.now()}`,
-      chrome: {
-        urls,
-        tabCount: urls.length,
-      },
-      terminal: {
-        sessions,
-        sessionCount: sessions.length,
-      },
+      chrome: urls.length > 0 ? { urls, tabCount: urls.length } : undefined,
+      terminal:
+        terminalSessions.length > 0 ? { sessions: terminalSessions, sessionCount: terminalSessions.length } : undefined,
+      iterm2: iterm2Sessions.length > 0 ? { sessions: iterm2Sessions, sessionCount: iterm2Sessions.length } : undefined,
+      ghostty:
+        ghosttySessions.length > 0 ? { sessions: ghosttySessions, sessionCount: ghosttySessions.length } : undefined,
+      apps: appsToSave,
     });
   } catch (error) {
     console.error("Error saving state:", error);

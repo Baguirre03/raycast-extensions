@@ -24,7 +24,10 @@ export interface StateSnapshot {
   timestamp: string;
   date: string;
   chrome?: ChromeSnapshot;
-  terminal?: TerminalSnapshot;
+  terminal?: TerminalSnapshot; // Terminal.app sessions
+  iterm2?: TerminalSnapshot; // iTerm2 sessions
+  ghostty?: TerminalSnapshot; // Ghostty sessions
+  apps?: string[]; // Array of app names that were running
 }
 
 export interface SavedStates {

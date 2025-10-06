@@ -8,6 +8,7 @@ import { getAllStatesArray } from "./utils/store-state";
 import { StateSnapshot } from "./types";
 import { reOpenTabs } from "./apps/chrome";
 import { restoreTerminalSessions } from "./apps/terminal";
+import { openClosedApps } from "./apps/open-apps";
 
 export default function Command() {
   const [snapshots, setSnapshots] = useState<StateSnapshot[]>([]);
@@ -31,22 +32,63 @@ export default function Command() {
   async function handleOpenSnapshot(snapshot: StateSnapshot, inNewWindow = true) {
     const toast = await showToast({
       style: Toast.Style.Animated,
-      title: "Opening tabs...",
+      title: "Restoring snapshot...",
     });
 
     try {
+      const restored: string[] = [];
+
+      // Open apps first (Obsidian, Spotify, Slack, etc.)
+      if (snapshot.apps && snapshot.apps.length > 0) {
+        toast.title = "Opening apps...";
+        const openedApps = await openClosedApps(snapshot.apps);
+        if (openedApps.length > 0) {
+          restored.push(`${openedApps.length} apps`);
+        }
+      }
+
+      // Restore Chrome tabs
       if (snapshot.chrome && snapshot.chrome.urls.length > 0) {
+        toast.title = "Restoring Chrome tabs...";
         await reOpenTabs(snapshot.chrome.urls, inNewWindow);
-        toast.title = "Restored Chrome tabs";
+        restored.push(`${snapshot.chrome.urls.length} tabs`);
       }
+
+      // Restore Terminal.app sessions
       if (snapshot.terminal && snapshot.terminal.sessions.length > 0) {
+        toast.title = "Restoring Terminal sessions...";
         await restoreTerminalSessions(snapshot.terminal.sessions, "Terminal", inNewWindow);
-        toast.title = "Restored Terminal sessions";
+        restored.push(`${snapshot.terminal.sessions.length} Terminal`);
       }
+
+      // Restore iTerm2 sessions
+      if (snapshot.iterm2 && snapshot.iterm2.sessions.length > 0) {
+        toast.title = "Restoring iTerm2 sessions...";
+        await restoreTerminalSessions(snapshot.iterm2.sessions, "iTerm2", inNewWindow);
+        restored.push(`${snapshot.iterm2.sessions.length} iTerm2`);
+      }
+
+      // Restore Ghostty sessions
+      if (snapshot.ghostty && snapshot.ghostty.sessions.length > 0) {
+        toast.title = "Restoring Ghostty sessions...";
+        await restoreTerminalSessions(snapshot.ghostty.sessions, "ghostty", inNewWindow);
+        restored.push(`${snapshot.ghostty.sessions.length} Ghostty`);
+      }
+
+      if (restored.length === 0) {
+        toast.style = Toast.Style.Failure;
+        toast.title = "Nothing to restore";
+        toast.message = "This snapshot has no data";
+        return;
+      }
+
+      toast.style = Toast.Style.Success;
+      toast.title = "Snapshot restored!";
+      toast.message = restored.join(" • ");
     } catch (error) {
-      console.error("Error restoring tabs:", error);
+      console.error("Error restoring snapshot:", error);
       toast.style = Toast.Style.Failure;
-      toast.title = "Failed to restore tabs";
+      toast.title = "Failed to restore snapshot";
       toast.message = error instanceof Error ? error.message : "Unknown error";
     }
   }
@@ -58,7 +100,7 @@ export default function Command() {
           key={snapshot.id}
           icon={Icon.AppWindow}
           title={snapshot.name}
-          subtitle={`${snapshot.chrome?.tabCount || 0} tabs, ${snapshot.terminal?.sessionCount || 0} sessions`}
+          subtitle={`${snapshot.apps?.length || 0} apps • ${snapshot.chrome?.tabCount || 0} tabs • ${(snapshot.terminal?.sessionCount || 0) + (snapshot.iterm2?.sessionCount || 0) + (snapshot.ghostty?.sessionCount || 0)} terminal sessions`}
           accessories={[{ text: snapshot.date }]}
           actions={
             <ActionPanel>

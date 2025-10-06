@@ -47,9 +47,37 @@ export default function Command() {
           }
           detail={
             <List.Item.Detail
-              markdown={`# ${snapshot.name}\n\n**Date:** ${snapshot.date}\n\n**ID:** ${snapshot.id}\n\n## Chrome Tabs (${snapshot.chrome?.tabCount || 0})\n\n${
-                snapshot.chrome?.urls.map((url, i) => `${i + 1}. ${url}`).join("\n") || "No tabs"
-              }\n\n## Raw JSON\n\n\`\`\`json\n${JSON.stringify(snapshot, null, 2)}\n\`\`\``}
+              markdown={`# ${snapshot.name}
+
+**Date:** ${snapshot.date}
+
+**ID:** ${snapshot.id}
+
+## Apps (${snapshot.apps?.length || 0})
+
+${snapshot.apps?.map((app, i) => `${i + 1}. ${app}`).join("\n") || "No apps"}
+
+## Chrome Tabs (${snapshot.chrome?.tabCount || 0})
+
+${snapshot.chrome?.urls.map((url, i) => `${i + 1}. ${url}`).join("\n") || "No tabs"}
+
+## Terminal Sessions (${snapshot.terminal?.sessionCount || 0})
+
+${snapshot.terminal?.sessions.map((s, i) => `${i + 1}. ${s.directory}`).join("\n") || "No sessions"}
+
+## iTerm2 Sessions (${snapshot.iterm2?.sessionCount || 0})
+
+${snapshot.iterm2?.sessions.map((s, i) => `${i + 1}. ${s.directory}`).join("\n") || "No sessions"}
+
+## Ghostty Sessions (${snapshot.ghostty?.sessionCount || 0})
+
+${snapshot.ghostty?.sessions.map((s, i) => `${i + 1}. ${s.directory}`).join("\n") || "No sessions"}
+
+## Raw JSON
+
+\`\`\`json
+${JSON.stringify(snapshot, null, 2)}
+\`\`\``}
             />
           }
         />

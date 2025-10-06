@@ -46,6 +46,35 @@ do shell script "ps -ax -o pid,ppid,comm | grep -E '/bin/(bash|zsh|sh)$' | while
     fi
 done"
 `;
+
+// Ghostty terminal - similar approach to Terminal.app
+const GET_GHOSTTY_SESSIONS_SCRIPT = `
+do shell script "ps -ax -o pid,ppid,comm | grep -E '/bin/(bash|zsh|sh)$' | while read pid ppid comm; do
+    # Check if any ancestor process is ghostty
+    current_ppid=$ppid
+    is_ghostty=false
+    
+    while [ $current_ppid -gt 1 ]; do
+        parent_comm=$(ps -o comm= -p $current_ppid 2>/dev/null)
+        if [[ \\"$parent_comm\\" == *ghostty* ]]; then
+            is_ghostty=true
+            break
+        fi
+        current_ppid=$(ps -o ppid= -p $current_ppid 2>/dev/null | tr -d ' ')
+        [ -z \\"$current_ppid\\" ] && break
+    done
+    
+    if [ \\"$is_ghostty\\" = true ]; then
+        shell_name=$(basename $comm)
+        dir=$(lsof -a -p $pid -d cwd -Fn 2>/dev/null | grep '^n/' | sed 's/^n//')
+        
+        if [ -n \\"$dir\\" ]; then
+            echo \\"$dir|$shell_name\\"
+        fi
+    fi
+done"
+`;
+
 export interface TerminalSession {
   directory: string;
   command: string;
@@ -72,13 +101,24 @@ export const getOpenTerminalSessions = async (): Promise<string> => {
 };
 
 /**
- * Get terminal sessions from whichever terminal app is running
- * Prefers iTerm2 if both are running
- * @param appName - Which terminal app to use ("iTerm2" or "Terminal")
+ * Get open terminal sessions from Ghostty
+ * @returns Promise with comma-separated session data (directory|command)
  */
-export const getTerminalSessions = async (appName: "iTerm2" | "Terminal"): Promise<string> => {
+export const getOpenGhostySessions = async (): Promise<string> => {
+  const result = await runAppleScript(GET_GHOSTTY_SESSIONS_SCRIPT);
+  console.log("Ghostty sessions:", result);
+  return result;
+};
+
+/**
+ * Get terminal sessions from whichever terminal app is running
+ * @param appName - Which terminal app to use ("iTerm2", "Terminal", or "ghostty")
+ */
+export const getTerminalSessions = async (appName: "iTerm2" | "Terminal" | "ghostty"): Promise<string> => {
   if (appName === "iTerm2") {
     return getOpenITermSessions();
+  } else if (appName === "ghostty") {
+    return getOpenGhostySessions();
   } else {
     return getOpenTerminalSessions();
   }
@@ -204,18 +244,41 @@ end tell
 };
 
 /**
+ * Reopen terminal sessions in Ghostty
+ * Note: Ghostty has limited automation support, so we open it with working directory
+ * @param sessions - Array of terminal sessions to restore
+ */
+export const reOpenGhostySessions = async (sessions: TerminalSession[]): Promise<void> => {
+  if (!sessions || sessions.length === 0) {
+    throw new Error("No terminal sessions provided");
+  }
+
+  // Ghostty supports --working-directory flag
+  for (const session of sessions) {
+    const script = `
+do shell script "open -n -a ghostty --args --working-directory='${session.directory.replace(/'/g, "'\\''")}'"
+    `.trim();
+    await runAppleScript(script);
+    // Small delay between opening sessions
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+};
+
+/**
  * Reopen terminal sessions in the specified terminal app
  * @param sessions - Array of terminal sessions to restore
- * @param appName - Which terminal app to use ("iTerm2" or "Terminal")
+ * @param appName - Which terminal app to use ("iTerm2", "Terminal", or "ghostty")
  * @param inNewWindow - Whether to open in a new window (default: true)
  */
 export const restoreTerminalSessions = async (
   sessions: TerminalSession[],
-  appName: "iTerm2" | "Terminal",
+  appName: "iTerm2" | "Terminal" | "ghostty",
   inNewWindow = true,
 ): Promise<void> => {
   if (appName === "iTerm2") {
     return reOpenITermSessions(sessions, inNewWindow);
+  } else if (appName === "ghostty") {
+    return reOpenGhostySessions(sessions);
   } else {
     return reOpenTerminalSessions(sessions, inNewWindow);
   }
