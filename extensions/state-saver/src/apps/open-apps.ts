@@ -4,6 +4,7 @@
  */
 
 import { runAppleScript } from "@raycast/utils";
+import { IS_APP_RUNNING_SCRIPT, OPEN_APP_SCRIPT } from "../scripts";
 
 export interface AppToOpen {
   name: string;
@@ -15,13 +16,7 @@ export interface AppToOpen {
  * @param appName - Name of the application to open
  */
 export async function openApp(appName: string): Promise<void> {
-  const script = `
-tell application "${appName}"
-    activate
-end tell
-  `.trim();
-
-  await runAppleScript(script);
+  await runAppleScript(OPEN_APP_SCRIPT({ appName }));
 }
 
 /**
@@ -52,14 +47,8 @@ export async function openMultipleApps(apps: string[]): Promise<void> {
  * @returns True if running, false otherwise
  */
 export async function isAppRunning(appName: string): Promise<boolean> {
-  const script = `
-tell application "System Events"
-    return (name of processes) contains "${appName}"
-end tell
-  `.trim();
-
   try {
-    const result = await runAppleScript(script);
+    const result = await runAppleScript(IS_APP_RUNNING_SCRIPT({ appName }));
     return result === "true";
   } catch (error) {
     console.error(`Failed to check if ${appName} is running:`, error);

@@ -1,19 +1,8 @@
 import { runAppleScript } from "@raycast/utils";
-
-const GET_OPEN_TABS_SCRIPT = `
-tell application "Google Chrome"
-    set tabURLs to {}
-    repeat with w in every window
-        repeat with t in every tab of w
-            set end of tabURLs to URL of t
-        end repeat
-    end repeat
-    return tabURLs
-end tell
-`;
+import { GET_CHROME_OPEN_TABS_SCRIPT, REOPEN_CHROME_TABS_SCRIPT } from "../scripts";
 
 export const getOpenTabs = async (): Promise<string> => {
-  const result = await runAppleScript(GET_OPEN_TABS_SCRIPT);
+  const result = await runAppleScript(GET_CHROME_OPEN_TABS_SCRIPT);
   return result;
 };
 
@@ -27,38 +16,5 @@ export const reOpenTabs = async (urls: string[], inNewWindow = true): Promise<vo
     throw new Error("No URLs provided");
   }
 
-  // Build AppleScript dynamically with URLs
-  const script = `
-tell application "Google Chrome"
-    activate
-    ${
-      inNewWindow
-        ? `
-    -- Create a new window with the first URL
-    make new window
-    set URL of active tab of front window to "${urls[0].replace(/"/g, '\\"')}"
-    
-    -- Add remaining URLs as new tabs
-    ${urls
-      .slice(1)
-      .map(
-        (url) => `
-    make new tab at end of tabs of front window with properties {URL:"${url.replace(/"/g, '\\"')}"}`,
-      )
-      .join("")}
-    `
-        : `
-    -- Open URLs in the current window
-    ${urls
-      .map(
-        (url) => `
-    make new tab at end of tabs of front window with properties {URL:"${url.replace(/"/g, '\\"')}"}`,
-      )
-      .join("")}
-    `
-    }
-end tell
-  `.trim();
-
-  await runAppleScript(script);
+  await runAppleScript(REOPEN_CHROME_TABS_SCRIPT({ urls, inNewWindow }));
 };

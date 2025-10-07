@@ -1,80 +1,12 @@
 import { runAppleScript } from "@raycast/utils";
-
-// iTerm2 has better AppleScript support for getting current directory
-const GET_ITERM_SESSIONS_SCRIPT = `
-tell application "iTerm"
-    set sessionData to {}
-    repeat with w in every window
-        repeat with t in every tab of w
-            repeat with s in every session of t
-                tell s
-                    set sessionInfo to (variable named "session.path") & "|" & (variable named "session.name")
-                    set end of sessionData to sessionInfo
-                end tell
-            end repeat
-        end repeat
-    end repeat
-    return sessionData
-end tell
-`;
-
-// Terminal.app has limited AppleScript support, so we use shell commands via lsof
-// This gets actual directories but loses window/tab context
-const GET_TERMINAL_SESSIONS_SCRIPT = `
-do shell script "ps -ax -o pid,ppid,comm | grep -E '/bin/(bash|zsh|sh)$' | while read pid ppid comm; do
-    # Check if any ancestor process is Terminal
-    current_ppid=$ppid
-    is_terminal=false
-    
-    while [ $current_ppid -gt 1 ]; do
-        parent_comm=$(ps -o comm= -p $current_ppid 2>/dev/null)
-        if [[ \\"$parent_comm\\" == *Terminal* ]] || [[ \\"$parent_comm\\" == *login* ]]; then
-            is_terminal=true
-            break
-        fi
-        current_ppid=$(ps -o ppid= -p $current_ppid 2>/dev/null | tr -d ' ')
-        [ -z \\"$current_ppid\\" ] && break
-    done
-    
-    if [ \\"$is_terminal\\" = true ]; then
-        shell_name=$(basename $comm)
-        dir=$(lsof -a -p $pid -d cwd -Fn 2>/dev/null | grep '^n/' | sed 's/^n//')
-        
-        if [ -n \\"$dir\\" ]; then
-            echo \\"$dir|$shell_name\\"
-        fi
-    fi
-done"
-`;
-
-// Ghostty terminal - similar approach to Terminal.app
-const GET_GHOSTTY_SESSIONS_SCRIPT = `
-do shell script "ps -ax -o pid,ppid,comm | grep -E '/bin/(bash|zsh|sh)$' | while read pid ppid comm; do
-    # Check if any ancestor process is ghostty
-    current_ppid=$ppid
-    is_ghostty=false
-    
-    while [ $current_ppid -gt 1 ]; do
-        parent_comm=$(ps -o comm= -p $current_ppid 2>/dev/null)
-        if [[ \\"$parent_comm\\" == *ghostty* ]]; then
-            is_ghostty=true
-            break
-        fi
-        current_ppid=$(ps -o ppid= -p $current_ppid 2>/dev/null | tr -d ' ')
-        [ -z \\"$current_ppid\\" ] && break
-    done
-    
-    if [ \\"$is_ghostty\\" = true ]; then
-        shell_name=$(basename $comm)
-        dir=$(lsof -a -p $pid -d cwd -Fn 2>/dev/null | grep '^n/' | sed 's/^n//')
-        
-        if [ -n \\"$dir\\" ]; then
-            echo \\"$dir|$shell_name\\"
-        fi
-    fi
-done"
-`;
-
+import {
+  GET_ITERM_SESSIONS_SCRIPT,
+  GET_TERMINAL_SESSIONS_SCRIPT,
+  GET_GHOSTTY_SESSIONS_SCRIPT,
+  REOPEN_ITERM_SESSIONS_SCRIPT,
+  REOPEN_TERMINAL_SESSIONS_SCRIPT,
+  REOPEN_GHOSTY_SESSIONS_SCRIPT,
+} from "../scripts";
 export interface TerminalSession {
   directory: string;
   command: string;
@@ -96,7 +28,6 @@ export const getOpenITermSessions = async (): Promise<string> => {
  */
 export const getOpenTerminalSessions = async (): Promise<string> => {
   const result = await runAppleScript(GET_TERMINAL_SESSIONS_SCRIPT);
-  console.log("Terminal sessions:", result);
   return result;
 };
 
@@ -106,7 +37,6 @@ export const getOpenTerminalSessions = async (): Promise<string> => {
  */
 export const getOpenGhostySessions = async (): Promise<string> => {
   const result = await runAppleScript(GET_GHOSTTY_SESSIONS_SCRIPT);
-  console.log("Ghostty sessions:", result);
   return result;
 };
 
@@ -158,47 +88,7 @@ export const reOpenITermSessions = async (sessions: TerminalSession[], inNewWind
     throw new Error("No terminal sessions provided");
   }
 
-  const script = `
-tell application "iTerm"
-    activate
-    ${
-      inNewWindow
-        ? `
-    create window with default profile
-    tell current session of current window
-        write text "cd \\"${sessions[0].directory.replace(/"/g, '\\"')}\\""
-    end tell
-    ${sessions
-      .slice(1)
-      .map(
-        (session) => `
-    tell current window
-        create tab with default profile
-        tell current session
-            write text "cd \\"${session.directory.replace(/"/g, '\\"')}\\""
-        end tell
-    end tell`,
-      )
-      .join("")}
-    `
-        : `
-    ${sessions
-      .map(
-        (session) => `
-    tell current window
-        create tab with default profile
-        tell current session
-            write text "cd \\"${session.directory.replace(/"/g, '\\"')}\\""
-        end tell
-    end tell`,
-      )
-      .join("")}
-    `
-    }
-end tell
-  `.trim();
-
-  await runAppleScript(script);
+  await runAppleScript(REOPEN_ITERM_SESSIONS_SCRIPT({ sessions, inNewWindow }));
 };
 
 /**
@@ -211,36 +101,7 @@ export const reOpenTerminalSessions = async (sessions: TerminalSession[], inNewW
     throw new Error("No terminal sessions provided");
   }
 
-  const script = `
-tell application "Terminal"
-    activate
-    ${
-      inNewWindow
-        ? `
-    do script "cd \\"${sessions[0].directory.replace(/"/g, '\\"')}\\""
-    ${sessions
-      .slice(1)
-      .map(
-        (session) => `
-    do script "cd \\"${session.directory.replace(/"/g, '\\"')}\\"" in window 1`,
-      )
-      .join("")}
-    `
-        : `
-    ${sessions
-      .map(
-        (session) => `
-    tell window 1
-        do script "cd \\"${session.directory.replace(/"/g, '\\"')}\\"" in window 1
-    end tell`,
-      )
-      .join("")}
-    `
-    }
-end tell
-  `.trim();
-
-  await runAppleScript(script);
+  await runAppleScript(REOPEN_TERMINAL_SESSIONS_SCRIPT({ sessions, inNewWindow }));
 };
 
 /**
@@ -253,13 +114,8 @@ export const reOpenGhostySessions = async (sessions: TerminalSession[]): Promise
     throw new Error("No terminal sessions provided");
   }
 
-  // Ghostty supports --working-directory flag
   for (const session of sessions) {
-    const script = `
-do shell script "open -n -a ghostty --args --working-directory='${session.directory.replace(/'/g, "'\\''")}'"
-    `.trim();
-    await runAppleScript(script);
-    // Small delay between opening sessions
+    await runAppleScript(REOPEN_GHOSTY_SESSIONS_SCRIPT({ session }));
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 };
