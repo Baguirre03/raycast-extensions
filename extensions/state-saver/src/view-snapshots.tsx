@@ -2,9 +2,15 @@
  * View Snapshots Command
  * Display all saved state snapshots
  */
-import { List, ActionPanel, Action, Icon, Form, useNavigation, showToast, Toast } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, Form, useNavigation, showToast, Toast, confirmAlert } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { getAllStatesArray, updateStateSnapshot, deleteState, toggleFavorite } from "./utils/store-snapshot";
+import {
+  getAllStatesArray,
+  updateStateSnapshot,
+  deleteState,
+  toggleFavorite,
+  clearAllStates,
+} from "./utils/store-snapshot";
 import { StateSnapshot } from "./utils/types";
 
 function EditSnapshotForm({ snapshot, onUpdate }: { snapshot: StateSnapshot; onUpdate: () => void }) {
@@ -139,8 +145,6 @@ export default function Command() {
     sections.push("");
     sections.push(`**Date:** ${snapshot.date}`);
     sections.push("");
-    sections.push(`**ID:** ${snapshot.id}`);
-    sections.push("");
 
     // Apps
     if (snapshot.apps && snapshot.apps.length > 0) {
@@ -230,6 +234,37 @@ export default function Command() {
     }
   }
 
+  async function handleDeleteAll() {
+    const confirmed = await confirmAlert({
+      title: "Delete All Snapshots?",
+      message: `This will permanently delete all ${snapshots.length} snapshot${snapshots.length === 1 ? "" : "s"}. This action cannot be undone.`,
+      icon: Icon.Trash,
+      primaryAction: {
+        title: "Delete All",
+      },
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: "Deleting all snapshots...",
+    });
+
+    try {
+      await clearAllStates();
+      toast.style = Toast.Style.Success;
+      toast.title = "All snapshots deleted!";
+      await loadSnapshots();
+    } catch (error) {
+      toast.style = Toast.Style.Failure;
+      toast.title = "Failed to delete snapshots";
+      toast.message = error instanceof Error ? error.message : "Unknown error";
+    }
+  }
+
   // Separate favorites from non-favorites
   const favoriteSnapshots = snapshots.filter((s) => s.favorite).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   const regularSnapshots = snapshots.filter((s) => !s.favorite).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
@@ -272,6 +307,17 @@ export default function Command() {
                 shortcut={{ modifiers: ["cmd"], key: "i" }}
               />
             </ActionPanel.Section>
+            {snapshots.length > 0 && (
+              <ActionPanel.Section title="Danger Zone">
+                <Action
+                  title="Delete All Snapshots"
+                  icon={Icon.Trash}
+                  style={Action.Style.Destructive}
+                  onAction={handleDeleteAll}
+                  shortcut={{ modifiers: ["cmd", "shift"], key: "delete" }}
+                />
+              </ActionPanel.Section>
+            )}
           </ActionPanel>
         }
         detail={<List.Item.Detail markdown={generateMarkdown(snapshot)} />}
