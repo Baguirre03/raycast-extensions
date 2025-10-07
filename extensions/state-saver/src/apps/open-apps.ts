@@ -4,7 +4,7 @@
  */
 
 import { runAppleScript } from "@raycast/utils";
-import { IS_APP_RUNNING_SCRIPT, OPEN_APP_SCRIPT } from "../scripts";
+import { IS_APP_RUNNING_SCRIPT, OPEN_APP_SCRIPT } from "../utils/scripts";
 
 export interface AppToOpen {
   name: string;

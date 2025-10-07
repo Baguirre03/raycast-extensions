@@ -4,9 +4,9 @@
  */
 import { List, ActionPanel, Action, Icon, showToast, Toast } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { getAllStatesArray } from "./utils/store-state";
-import { StateSnapshot } from "./types";
-import { reOpenTabs } from "./apps/chrome";
+import { getAllStatesArray } from "./utils/store-snapshot";
+import { StateSnapshot } from "./utils/types";
+import * as Browser from "./apps/browser";
 import { restoreTerminalSessions } from "./apps/terminal";
 import { openClosedApps } from "./apps/open-apps";
 
@@ -50,8 +50,15 @@ export default function Command() {
       // Restore Chrome tabs
       if (snapshot.chrome && snapshot.chrome.urls.length > 0) {
         toast.title = "Restoring Chrome tabs...";
-        await reOpenTabs(snapshot.chrome.urls, inNewWindow);
-        restored.push(`${snapshot.chrome.urls.length} tabs`);
+        await Browser.reOpenTabs(Browser.BROWSERS.CHROME, snapshot.chrome.urls, inNewWindow);
+        restored.push(`${snapshot.chrome.urls.length} Chrome tabs`);
+      }
+
+      // Restore Arc tabs
+      if (snapshot.arc && snapshot.arc.urls.length > 0) {
+        toast.title = "Restoring Arc tabs...";
+        await Browser.reOpenTabs(Browser.BROWSERS.ARC, snapshot.arc.urls, inNewWindow);
+        restored.push(`${snapshot.arc.urls.length} Arc tabs`);
       }
 
       // Restore Terminal.app sessions
@@ -100,7 +107,7 @@ export default function Command() {
           key={snapshot.id}
           icon={Icon.AppWindow}
           title={snapshot.name}
-          subtitle={`${snapshot.apps?.length || 0} apps • ${snapshot.chrome?.tabCount || 0} tabs • ${(snapshot.terminal?.sessionCount || 0) + (snapshot.iterm2?.sessionCount || 0) + (snapshot.ghostty?.sessionCount || 0)} terminal sessions`}
+          subtitle={`${snapshot.apps?.length || 0} apps • ${(snapshot.chrome?.tabCount || 0) + (snapshot.arc?.tabCount || 0)} tabs • ${(snapshot.terminal?.sessionCount || 0) + (snapshot.iterm2?.sessionCount || 0) + (snapshot.ghostty?.sessionCount || 0)} terminal sessions`}
           accessories={[{ text: snapshot.date }]}
           actions={
             <ActionPanel>
@@ -117,7 +124,11 @@ export default function Command() {
               />
               <Action.CopyToClipboard
                 title="Copy URLs"
-                content={snapshot.chrome?.urls.join("\n") || snapshot.terminal?.sessions.join("\n") || ""}
+                content={
+                  [...(snapshot.chrome?.urls || []), ...(snapshot.arc?.urls || [])].join("\n") ||
+                  snapshot.terminal?.sessions.join("\n") ||
+                  ""
+                }
                 shortcut={{ modifiers: ["cmd"], key: "c" }}
               />
             </ActionPanel>

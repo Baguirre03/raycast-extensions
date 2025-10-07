@@ -4,10 +4,9 @@
  */
 
 import { LocalStorage } from "@raycast/api";
-import { StateSnapshot, SavedStates } from "../types";
+import { StateSnapshot, SavedStates } from "./types";
 
 const STORAGE_KEY = "saved-states";
-
 /**
  * Generate a unique ID for a snapshot
  */

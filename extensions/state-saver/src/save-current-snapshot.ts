@@ -1,27 +1,38 @@
 /**
  * Save State Command
- * Captures Chrome tabs and saves them to LocalStorage
+ * Captures Chrome and Arc tabs and saves them to LocalStorage
  */
 import { showToast, Toast } from "@raycast/api";
-import { getOpenTabs } from "./apps/chrome";
-import { OpenApps } from "./consts";
+import * as Browser from "./apps/browser";
 import { getOpenApps } from "./utils/get-open-apps";
-import { saveStateSnapshot } from "./utils/store-state";
+import { saveStateSnapshot } from "./utils/store-snapshot";
 import { getTerminalSessions, parseTerminalSessions, TerminalSession } from "./apps/terminal";
+
+enum OpenApps {
+  Chrome = "Google Chrome",
+  Arc = "Arc",
+  Finder = "Finder",
+  Slack = "Slack",
+  Ghostyy = "ghostty",
+  Obsidian = "Obsidian",
+  Spotify = "Spotify",
+  ITerm = "iTerm2",
+  Terminal = "Terminal",
+}
 
 export default async function Command() {
   const toast = await showToast({
     style: Toast.Style.Animated,
-    title: "Checking for Chrome...",
+    title: "Checking for browsers...",
   });
 
   try {
-    let urls: string[] = [];
+    let chromeUrls: string[] = [];
+    let arcUrls: string[] = [];
     let terminalSessions: TerminalSession[] = [];
     let iterm2Sessions: TerminalSession[] = [];
     let ghosttySessions: TerminalSession[] = [];
     const openApps = await getOpenApps();
-    console.log("Open apps:", openApps);
 
     // Filter apps to save (exclude system apps, only save user apps)
     const appsToSave = openApps.filter((app) => {
@@ -34,10 +45,15 @@ export default async function Command() {
     });
 
     if (openApps.includes(OpenApps.Chrome)) {
-      // Capture Chrome tabs
       toast.title = "Capturing Chrome tabs...";
-      const openTabsString = await getOpenTabs();
-      urls = openTabsString.split(", ").filter((url) => url.trim().length > 0);
+      const openTabsString = await Browser.getOpenTabs(Browser.BROWSERS.CHROME);
+      chromeUrls = openTabsString.split(", ").filter((url) => url.trim().length > 0);
+    }
+
+    if (openApps.includes(OpenApps.Arc)) {
+      toast.title = "Capturing Arc tabs...";
+      const openTabsString = await Browser.getOpenTabs(Browser.BROWSERS.ARC);
+      arcUrls = openTabsString.split(", ").filter((url) => url.trim().length > 0);
     }
 
     if (openApps.includes(OpenApps.Terminal)) {
@@ -62,7 +78,8 @@ export default async function Command() {
     toast.title = "Saving snapshot...";
     await saveStateSnapshot({
       name: `Snapshot ${Date.now()}`,
-      chrome: urls.length > 0 ? { urls, tabCount: urls.length } : undefined,
+      chrome: chromeUrls.length > 0 ? { urls: chromeUrls, tabCount: chromeUrls.length } : undefined,
+      arc: arcUrls.length > 0 ? { urls: arcUrls, tabCount: arcUrls.length } : undefined,
       terminal:
         terminalSessions.length > 0 ? { sessions: terminalSessions, sessionCount: terminalSessions.length } : undefined,
       iterm2: iterm2Sessions.length > 0 ? { sessions: iterm2Sessions, sessionCount: iterm2Sessions.length } : undefined,

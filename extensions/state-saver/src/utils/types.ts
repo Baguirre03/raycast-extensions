@@ -2,7 +2,7 @@
  * Type definitions for State Saver
  */
 
-export interface ChromeSnapshot {
+export interface BrowserSnapshot {
   urls: string[];
   windowCount?: number;
   tabCount: number;
@@ -23,7 +23,8 @@ export interface StateSnapshot {
   name: string;
   timestamp: string;
   date: string;
-  chrome?: ChromeSnapshot;
+  chrome?: BrowserSnapshot;
+  arc?: BrowserSnapshot; // Arc browser uses same structure as Chrome
   terminal?: TerminalSnapshot; // Terminal.app sessions
   iterm2?: TerminalSnapshot; // iTerm2 sessions
   ghostty?: TerminalSnapshot; // Ghostty sessions

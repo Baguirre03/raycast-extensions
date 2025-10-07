@@ -4,8 +4,8 @@
  */
 import { List, ActionPanel, Action, Icon } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { getAllStatesArray } from "./utils/store-state";
-import { StateSnapshot } from "./types";
+import { getAllStatesArray } from "./utils/store-snapshot";
+import { StateSnapshot } from "./utils/types";
 
 export default function Command() {
   const [snapshots, setSnapshots] = useState<StateSnapshot[]>([]);

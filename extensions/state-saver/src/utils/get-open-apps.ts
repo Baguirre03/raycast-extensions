@@ -1,10 +1,5 @@
 import { runAppleScript } from "@raycast/utils";
-
-export const GET_OPEN_APPS_SCRIPT = `tell application "System Events"
-        set openApps to name of every process whose background only is false
-    end tell
-    return openApps
-`;
+import { GET_OPEN_APPS_SCRIPT } from "./scripts";
 
 export const getOpenApps = async (): Promise<string[]> => {
   const result = await runAppleScript(GET_OPEN_APPS_SCRIPT);

@@ -1,10 +1,14 @@
-import { TerminalSession } from "./apps/terminal";
+import { TerminalSession } from "../apps/terminal";
 
 // ============================================================================
-// Google Chrome Scripts
+// Browser Scripts
 // ============================================================================
 
-export const GET_CHROME_OPEN_TABS_SCRIPT = `tell application "Google Chrome"
+interface GetBrowserOpenTabsParams {
+  appName: string;
+}
+
+export const GET_BROWSER_OPEN_TABS_SCRIPT = ({ appName }: GetBrowserOpenTabsParams) => `tell application "${appName}"
     set tabURLs to {}
     repeat with w in every window
         repeat with t in every tab of w
@@ -14,14 +18,15 @@ export const GET_CHROME_OPEN_TABS_SCRIPT = `tell application "Google Chrome"
     return tabURLs
 end tell`;
 
-interface ReopenChromeTabsParams {
+interface ReopenBrowserTabsParams {
+  appName: string;
   urls: string[];
   inNewWindow: boolean;
 }
 
-export const REOPEN_CHROME_TABS_SCRIPT = ({ urls, inNewWindow }: ReopenChromeTabsParams) =>
+export const REOPEN_BROWSER_TABS_SCRIPT = ({ appName, urls, inNewWindow }: ReopenBrowserTabsParams) =>
   `
-tell application "Google Chrome"
+tell application "${appName}"
     activate
     ${
       inNewWindow
@@ -55,6 +60,12 @@ end tell
 // ============================================================================
 // Open App Scripts
 // ============================================================================
+
+export const GET_OPEN_APPS_SCRIPT = `tell application "System Events"
+        set openApps to name of every process whose background only is false
+    end tell
+    return openApps
+`;
 
 interface OpenAppParams {
   appName: string;

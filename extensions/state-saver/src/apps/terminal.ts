@@ -6,7 +6,7 @@ import {
   REOPEN_ITERM_SESSIONS_SCRIPT,
   REOPEN_TERMINAL_SESSIONS_SCRIPT,
   REOPEN_GHOSTY_SESSIONS_SCRIPT,
-} from "../scripts";
+} from "../utils/scripts";
 export interface TerminalSession {
   directory: string;
   command: string;
