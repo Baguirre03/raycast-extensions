@@ -24,8 +24,49 @@ interface ReopenBrowserTabsParams {
   inNewWindow: boolean;
 }
 
-export const REOPEN_BROWSER_TABS_SCRIPT = ({ appName, urls, inNewWindow }: ReopenBrowserTabsParams) =>
-  `
+export const REOPEN_BROWSER_TABS_SCRIPT = ({ appName, urls, inNewWindow }: ReopenBrowserTabsParams) => {
+  if (appName === "Safari") {
+    return `
+tell application "${appName}"
+    activate
+    ${
+      inNewWindow
+        ? `
+    -- Create a new window with the first URL
+    make new document
+    set URL of current tab of front window to "${urls[0].replace(/"/g, '\\"')}"
+    
+    -- Add remaining URLs as new tabs
+    ${urls
+      .slice(1)
+      .map(
+        (url) => `
+    tell front window
+        set current tab to (make new tab)
+        set URL of current tab to "${url.replace(/"/g, '\\"')}"
+    end tell`,
+      )
+      .join("")}
+    `
+        : `
+    -- Open URLs in the current window
+    ${urls
+      .map(
+        (url) => `
+    tell front window
+        set current tab to (make new tab)
+        set URL of current tab to "${url.replace(/"/g, '\\"')}"
+    end tell`,
+      )
+      .join("")}
+    `
+    }
+end tell
+    `.trim();
+  }
+
+  // Chrome, Arc, Brave, etc.
+  return `
 tell application "${appName}"
     activate
     ${
@@ -40,7 +81,9 @@ tell application "${appName}"
       .slice(1)
       .map(
         (url) => `
-    make new tab at end of tabs of front window with properties {URL:"${url.replace(/"/g, '\\"')}"}`,
+    tell front window
+        make new tab with properties {URL:"${url.replace(/"/g, '\\"')}"}
+    end tell`,
       )
       .join("")}
     `
@@ -49,13 +92,16 @@ tell application "${appName}"
     ${urls
       .map(
         (url) => `
-    make new tab at end of tabs of front window with properties {URL:"${url.replace(/"/g, '\\"')}"}`,
+    tell front window
+        make new tab with properties {URL:"${url.replace(/"/g, '\\"')}"}
+    end tell`,
       )
       .join("")}
     `
     }
 end tell
   `.trim();
+};
 
 // ============================================================================
 // Open App Scripts

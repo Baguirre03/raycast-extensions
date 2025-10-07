@@ -24,11 +24,13 @@ export interface StateSnapshot {
   timestamp: string;
   date: string;
   chrome?: BrowserSnapshot;
-  arc?: BrowserSnapshot; // Arc browser uses same structure as Chrome
-  terminal?: TerminalSnapshot; // Terminal.app sessions
-  iterm2?: TerminalSnapshot; // iTerm2 sessions
-  ghostty?: TerminalSnapshot; // Ghostty sessions
-  apps?: string[]; // Array of app names that were running
+  brave?: BrowserSnapshot;
+  safari?: BrowserSnapshot;
+  arc?: BrowserSnapshot;
+  terminal?: TerminalSnapshot;
+  iterm2?: TerminalSnapshot;
+  ghostty?: TerminalSnapshot;
+  apps?: string[];
 }
 
 export interface SavedStates {

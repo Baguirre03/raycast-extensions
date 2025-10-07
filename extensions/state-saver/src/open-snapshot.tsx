@@ -61,6 +61,19 @@ export default function Command() {
         restored.push(`${snapshot.arc.urls.length} Arc tabs`);
       }
 
+      // Restore Brave tabs
+      if (snapshot.brave && snapshot.brave.urls.length > 0) {
+        toast.title = "Restoring Brave tabs...";
+        await Browser.reOpenTabs(Browser.BROWSERS.BRAVE, snapshot.brave.urls, inNewWindow);
+        restored.push(`${snapshot.brave.urls.length} Brave tabs`);
+      }
+
+      if (snapshot.safari && snapshot.safari.urls.length > 0) {
+        toast.title = "Restoring Safari tabs...";
+        await Browser.reOpenTabs(Browser.BROWSERS.SAFARI, snapshot.safari.urls, inNewWindow);
+        restored.push(`${snapshot.safari.urls.length} Safari tabs`);
+      }
+
       // Restore Terminal.app sessions
       if (snapshot.terminal && snapshot.terminal.sessions.length > 0) {
         toast.title = "Restoring Terminal sessions...";
