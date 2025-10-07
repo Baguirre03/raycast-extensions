@@ -4,7 +4,7 @@
  */
 import { List, ActionPanel, Action, Icon, Form, useNavigation, showToast, Toast } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { getAllStatesArray, updateStateSnapshot, deleteState } from "./utils/store-snapshot";
+import { getAllStatesArray, updateStateSnapshot, deleteState, toggleFavorite } from "./utils/store-snapshot";
 import { StateSnapshot } from "./utils/types";
 
 function EditSnapshotForm({ snapshot, onUpdate }: { snapshot: StateSnapshot; onUpdate: () => void }) {
@@ -195,25 +195,6 @@ export default function Command() {
     return sections.join("\n");
   }
 
-  function getSubtitle(snapshot: StateSnapshot): string {
-    const totalTabs =
-      (snapshot.chrome?.tabCount || 0) +
-      (snapshot.arc?.tabCount || 0) +
-      (snapshot.brave?.tabCount || 0) +
-      (snapshot.safari?.tabCount || 0);
-    const totalTerminals =
-      (snapshot.terminal?.sessionCount || 0) +
-      (snapshot.iterm2?.sessionCount || 0) +
-      (snapshot.ghostty?.sessionCount || 0);
-
-    const parts: string[] = [];
-    if (snapshot.apps && snapshot.apps.length > 0) parts.push(`${snapshot.apps.length} apps`);
-    if (totalTabs > 0) parts.push(`${totalTabs} tabs`);
-    if (totalTerminals > 0) parts.push(`${totalTerminals} sessions`);
-
-    return parts.join(" • ") || "Empty snapshot";
-  }
-
   async function handleDelete(snapshot: StateSnapshot) {
     const toast = await showToast({
       style: Toast.Style.Animated,
@@ -232,42 +213,82 @@ export default function Command() {
     }
   }
 
+  async function handleToggleFavorite(snapshot: StateSnapshot) {
+    try {
+      await toggleFavorite(snapshot.id);
+      await loadSnapshots();
+      await showToast({
+        style: Toast.Style.Success,
+        title: snapshot.favorite ? "Removed from favorites" : "Added to favorites",
+      });
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to update favorite",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  // Separate favorites from non-favorites
+  const favoriteSnapshots = snapshots.filter((s) => s.favorite).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const regularSnapshots = snapshots.filter((s) => !s.favorite).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
+  function renderSnapshot(snapshot: StateSnapshot) {
+    return (
+      <List.Item
+        key={snapshot.id}
+        icon={snapshot.favorite ? Icon.Star : Icon.AppWindow}
+        title={snapshot.name}
+        accessories={[
+          ...(snapshot.favorite ? [{ icon: Icon.Star, tooltip: "Favorite" }] : []),
+          { text: snapshot.date },
+        ]}
+        actions={
+          <ActionPanel>
+            <Action.Push
+              title="Edit Snapshot"
+              icon={Icon.Pencil}
+              target={<EditSnapshotForm snapshot={snapshot} onUpdate={loadSnapshots} />}
+            />
+            <Action
+              title={snapshot.favorite ? "Remove from Favorites" : "Add to Favorites"}
+              icon={snapshot.favorite ? Icon.StarDisabled : Icon.Star}
+              onAction={() => handleToggleFavorite(snapshot)}
+              shortcut={{ modifiers: ["cmd"], key: "f" }}
+            />
+            <Action
+              title="Delete Snapshot"
+              icon={Icon.Trash}
+              style={Action.Style.Destructive}
+              onAction={() => handleDelete(snapshot)}
+              shortcut={{ modifiers: ["cmd"], key: "d" }}
+            />
+            <ActionPanel.Section title="Copy">
+              <Action.CopyToClipboard title="Copy Snapshot JSON" content={JSON.stringify(snapshot, null, 2)} />
+              <Action.CopyToClipboard
+                title="Copy Snapshot ID"
+                content={snapshot.id}
+                shortcut={{ modifiers: ["cmd"], key: "i" }}
+              />
+            </ActionPanel.Section>
+          </ActionPanel>
+        }
+        detail={<List.Item.Detail markdown={generateMarkdown(snapshot)} />}
+      />
+    );
+  }
+
   return (
     <List isLoading={isLoading} isShowingDetail searchBarPlaceholder="Search snapshots...">
-      {snapshots.map((snapshot) => (
-        <List.Item
-          key={snapshot.id}
-          icon={Icon.AppWindow}
-          title={snapshot.name}
-          subtitle={getSubtitle(snapshot)}
-          accessories={[{ text: snapshot.date }]}
-          actions={
-            <ActionPanel>
-              <Action.Push
-                title="Edit Snapshot"
-                icon={Icon.Pencil}
-                target={<EditSnapshotForm snapshot={snapshot} onUpdate={loadSnapshots} />}
-              />
-              <Action
-                title="Delete Snapshot"
-                icon={Icon.Trash}
-                style={Action.Style.Destructive}
-                onAction={() => handleDelete(snapshot)}
-                shortcut={{ modifiers: ["cmd"], key: "d" }}
-              />
-              <ActionPanel.Section title="Copy">
-                <Action.CopyToClipboard title="Copy Snapshot JSON" content={JSON.stringify(snapshot, null, 2)} />
-                <Action.CopyToClipboard
-                  title="Copy Snapshot ID"
-                  content={snapshot.id}
-                  shortcut={{ modifiers: ["cmd"], key: "i" }}
-                />
-              </ActionPanel.Section>
-            </ActionPanel>
-          }
-          detail={<List.Item.Detail markdown={generateMarkdown(snapshot)} />}
-        />
-      ))}
+      {favoriteSnapshots.length > 0 && (
+        <List.Section title="Favorites">{favoriteSnapshots.map(renderSnapshot)}</List.Section>
+      )}
+      {regularSnapshots.length > 0 && (
+        <List.Section title={favoriteSnapshots.length > 0 ? "All Snapshots" : undefined}>
+          {regularSnapshots.map(renderSnapshot)}
+        </List.Section>
+      )}
     </List>
   );
 }

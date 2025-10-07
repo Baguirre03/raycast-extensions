@@ -2,7 +2,7 @@
  * Save State Command
  * Captures Chrome and Arc tabs and saves them to LocalStorage
  */
-import { showToast, Toast } from "@raycast/api";
+import { showToast, Toast, launchCommand, LaunchType } from "@raycast/api";
 import * as Browser from "./apps/browser";
 import { getOpenApps } from "./utils/get-open-apps";
 import { saveStateSnapshot } from "./utils/store-snapshot";
@@ -120,6 +120,18 @@ export default async function Command() {
       ghostty: terminalData.ghostty,
       apps: appsToSave,
     });
+    toast.style = Toast.Style.Success;
+    toast.title = "Snapshot saved!";
+    toast.primaryAction = {
+      title: "View Snapshot",
+      shortcut: { modifiers: ["cmd"], key: "v" },
+      onAction: async () => {
+        await launchCommand({
+          name: "view-snapshots",
+          type: LaunchType.UserInitiated,
+        });
+      },
+    };
   } catch (error) {
     console.error("Error saving state:", error);
     toast.style = Toast.Style.Failure;

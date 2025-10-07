@@ -158,6 +158,24 @@ export async function updateStateSnapshot(
 }
 
 /**
+ * Toggle favorite status of a snapshot
+ * @param id - The snapshot ID
+ * @returns True if updated, false if not found
+ */
+export async function toggleFavorite(id: string): Promise<boolean> {
+  const allStates = await getAllStates();
+
+  if (!allStates[id]) {
+    return false;
+  }
+
+  allStates[id].favorite = !allStates[id].favorite;
+  await LocalStorage.setItem(STORAGE_KEY, JSON.stringify(allStates));
+
+  return true;
+}
+
+/**
  * Clear all saved states (use with caution!)
  */
 export async function clearAllStates(): Promise<void> {

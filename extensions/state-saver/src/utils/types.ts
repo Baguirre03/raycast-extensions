@@ -23,6 +23,7 @@ export interface StateSnapshot {
   name: string;
   timestamp: string;
   date: string;
+  favorite?: boolean;
   chrome?: BrowserSnapshot;
   brave?: BrowserSnapshot;
   safari?: BrowserSnapshot;
