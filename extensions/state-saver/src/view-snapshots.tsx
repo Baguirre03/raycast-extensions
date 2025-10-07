@@ -53,17 +53,6 @@ function EditSnapshotForm({ snapshot, onUpdate }: { snapshot: StateSnapshot; onU
         updates.safari.tabCount = updates.safari.urls?.length || 0;
       }
 
-      // Update counts for terminals
-      if (updates.terminal) {
-        updates.terminal.sessionCount = updates.terminal.sessions?.length || 0;
-      }
-      if (updates.iterm2) {
-        updates.iterm2.sessionCount = updates.iterm2.sessions?.length || 0;
-      }
-      if (updates.ghostty) {
-        updates.ghostty.sessionCount = updates.ghostty.sessions?.length || 0;
-      }
-
       await updateStateSnapshot(snapshot.id, updates);
       toast.style = Toast.Style.Success;
       toast.title = "Snapshot updated!";
@@ -145,14 +134,6 @@ export default function Command() {
     sections.push(`**Date:** ${snapshot.date}`);
     sections.push("");
 
-    // Apps
-    if (snapshot.apps && snapshot.apps.length > 0) {
-      sections.push(`## Apps (${snapshot.apps.length})`);
-      sections.push("");
-      sections.push(snapshot.apps.map((app, i) => `${i + 1}. ${app}`).join("\n"));
-      sections.push("");
-    }
-
     // Browsers
     const browsers = [
       { key: "chrome" as const, displayName: "Chrome" },
@@ -164,26 +145,9 @@ export default function Command() {
     for (const browser of browsers) {
       const browserData = snapshot[browser.key];
       if (browserData && browserData.urls.length > 0) {
-        sections.push(`## ${browser.displayName}`);
+        sections.push(`## ${browser.displayName} (${browserData.tabCount} tabs)`);
         sections.push("");
         sections.push(browserData.urls.map((url, i) => `${i + 1}. ${url}`).join("\n"));
-        sections.push("");
-      }
-    }
-
-    // Terminals
-    const terminals = [
-      { key: "terminal" as const, displayName: "Terminal" },
-      { key: "iterm2" as const, displayName: "iTerm2" },
-      { key: "ghostty" as const, displayName: "Ghostty" },
-    ];
-
-    for (const terminal of terminals) {
-      const terminalData = snapshot[terminal.key];
-      if (terminalData && terminalData.sessions.length > 0) {
-        sections.push(`## ${terminal.displayName}`);
-        sections.push("");
-        sections.push(terminalData.sessions.map((s, i) => `${i + 1}. ${s.directory}`).join("\n"));
         sections.push("");
       }
     }

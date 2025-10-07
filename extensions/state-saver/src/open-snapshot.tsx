@@ -7,9 +7,6 @@ import { useEffect, useState } from "react";
 import { getAllStatesArray } from "./utils/store-snapshot";
 import { StateSnapshot } from "./utils/types";
 import * as Browser from "./apps/browser";
-import * as IDE from "./apps/ide";
-import { restoreTerminalSessions } from "./apps/terminal";
-import { openClosedApps } from "./apps/open-apps";
 
 // Browser restoration map
 const browsers = [
@@ -17,19 +14,6 @@ const browsers = [
   { key: "arc" as const, appName: Browser.BROWSERS.ARC, displayName: "Arc" },
   { key: "brave" as const, appName: Browser.BROWSERS.BRAVE, displayName: "Brave" },
   { key: "safari" as const, appName: Browser.BROWSERS.SAFARI, displayName: "Safari" },
-];
-
-// IDE restoration map
-const ides = [
-  { key: "vscode" as const, appName: IDE.IDES.VSCODE, displayName: "VSCode" },
-  { key: "cursor" as const, appName: IDE.IDES.CURSOR, displayName: "Cursor" },
-];
-
-// Terminal restoration map
-const terminals = [
-  { key: "terminal" as const, appName: "Terminal" as const, displayName: "Terminal" },
-  { key: "iterm2" as const, appName: "iTerm2" as const, displayName: "iTerm2" },
-  { key: "ghostty" as const, appName: "ghostty" as const, displayName: "Ghostty" },
 ];
 
 export default function Command() {
@@ -60,46 +44,21 @@ export default function Command() {
     try {
       const restored: string[] = [];
 
-      // Open apps first (Obsidian, Spotify, Slack, etc.)
-      if (snapshot.apps && snapshot.apps.length > 0) {
-        toast.title = "Opening apps...";
-        const openedApps = await openClosedApps(snapshot.apps);
-        if (openedApps.length > 0) {
-          restored.push(`${openedApps.length} apps`);
-        }
-      }
-
       for (const browser of browsers) {
         const browserData = snapshot[browser.key];
         if (browserData && browserData.urls.length > 0) {
           toast.title = `Restoring ${browser.displayName} tabs...`;
           await Browser.reOpenTabs(browser.appName, browserData.urls, inNewWindow);
-          restored.push(`${browserData.urls.length} ${browser.displayName} tabs`);
-        }
-      }
-
-      for (const ide of ides) {
-        const ideData = snapshot[ide.key];
-        if (ideData && ideData.workspaces.length > 0) {
-          toast.title = `Restoring ${ide.displayName} workspaces...`;
-          await IDE.reOpenWorkspaces(ide.appName, ideData.workspaces, inNewWindow);
-          restored.push(`${ideData.workspaces.length} ${ide.displayName} workspaces`);
-        }
-      }
-
-      for (const terminal of terminals) {
-        const terminalData = snapshot[terminal.key];
-        if (terminalData && terminalData.sessions.length > 0) {
-          toast.title = `Restoring ${terminal.displayName} sessions...`;
-          await restoreTerminalSessions(terminalData.sessions, terminal.appName, inNewWindow);
-          restored.push(`${terminalData.sessions.length} ${terminal.displayName}`);
+          restored.push(
+            `${browserData.urls.length} ${browser.displayName} tab${browserData.urls.length === 1 ? "" : "s"}`,
+          );
         }
       }
 
       if (restored.length === 0) {
         toast.style = Toast.Style.Failure;
         toast.title = "Nothing to restore";
-        toast.message = "This snapshot has no data";
+        toast.message = "This snapshot has no browser tabs";
         return;
       }
 
@@ -122,18 +81,13 @@ export default function Command() {
           (snapshot.arc?.tabCount || 0) +
           (snapshot.brave?.tabCount || 0) +
           (snapshot.safari?.tabCount || 0);
-        const totalWorkspaces = (snapshot.vscode?.workspaceCount || 0) + (snapshot.cursor?.workspaceCount || 0);
-        const totalTerminals =
-          (snapshot.terminal?.sessionCount || 0) +
-          (snapshot.iterm2?.sessionCount || 0) +
-          (snapshot.ghostty?.sessionCount || 0);
 
         return (
           <List.Item
             key={snapshot.id}
             icon={Icon.AppWindow}
             title={snapshot.name}
-            subtitle={`${snapshot.apps?.length || 0} apps • ${totalTabs} tabs • ${totalWorkspaces} workspaces • ${totalTerminals} terminal sessions`}
+            subtitle={`${totalTabs} tab${totalTabs === 1 ? "" : "s"}`}
             accessories={[{ text: snapshot.date }]}
             actions={
               <ActionPanel>

@@ -1,28 +1,17 @@
 /**
  * Save State Command
- * Captures Chrome and Arc tabs and saves them to LocalStorage
+ * Captures browser tabs and saves them to LocalStorage
  */
 import { showToast, Toast, launchCommand, LaunchType } from "@raycast/api";
 import * as Browser from "./apps/browser";
-import * as IDE from "./apps/ide";
 import { getOpenApps } from "./utils/get-open-apps";
 import { saveStateSnapshot } from "./utils/store-snapshot";
-import { getTerminalSessions, parseTerminalSessions, TerminalSession } from "./apps/terminal";
 
 enum OpenApps {
   Chrome = "Google Chrome",
   Arc = "Arc",
-  Finder = "Finder",
-  Slack = "Slack",
-  Ghostyy = "ghostty",
-  Obsidian = "Obsidian",
-  Spotify = "Spotify",
-  ITerm = "iTerm2",
-  Terminal = "Terminal",
   Brave = "Brave Browser",
   Safari = "Safari",
-  VSCode = "Visual Studio Code",
-  Cursor = "Cursor",
 }
 
 const createSnapshotName = () => {
@@ -58,39 +47,6 @@ const browsers = [
   },
 ];
 
-// IDE capture map
-const ides = [
-  {
-    openAppKey: OpenApps.VSCode,
-    ideKey: IDE.IDES.VSCODE,
-    displayName: "VSCode",
-    snapshotKey: "vscode" as const,
-  },
-  {
-    openAppKey: OpenApps.Cursor,
-    ideKey: IDE.IDES.CURSOR,
-    displayName: "Cursor",
-    snapshotKey: "cursor" as const,
-  },
-];
-
-// Terminal capture map
-const terminals = [
-  {
-    openAppKey: OpenApps.Terminal,
-    appName: "Terminal" as const,
-    displayName: "Terminal",
-    snapshotKey: "terminal" as const,
-  },
-  { openAppKey: OpenApps.ITerm, appName: "iTerm2" as const, displayName: "iTerm2", snapshotKey: "iterm2" as const },
-  {
-    openAppKey: OpenApps.Ghostyy,
-    appName: "ghostty" as const,
-    displayName: "Ghostty",
-    snapshotKey: "ghostty" as const,
-  },
-];
-
 export default async function Command() {
   const toast = await showToast({
     style: Toast.Style.Animated,
@@ -99,14 +55,6 @@ export default async function Command() {
 
   try {
     const openApps = await getOpenApps();
-    const appsToSave = openApps.filter((app) => {
-      return [
-        OpenApps.Obsidian,
-        OpenApps.Spotify,
-        OpenApps.Slack,
-        // Add more apps you want to restore
-      ].includes(app as OpenApps);
-    });
 
     const browserData: Record<string, { urls: string[]; tabCount: number } | undefined> = {};
 
@@ -121,36 +69,6 @@ export default async function Command() {
       }
     }
 
-    const ideData: Record<string, { workspaces: string[]; workspaceCount: number } | undefined> = {};
-
-    // Check IDEs regardless of open apps list (VS Code shows as "Electron", which is ambiguous)
-    for (const ide of ides) {
-      try {
-        toast.title = `Capturing ${ide.displayName} workspaces...`;
-        const openWorkspacesString = await IDE.getOpenWorkspaces(ide.ideKey);
-        const workspaces = openWorkspacesString.split(", ").filter((workspace) => workspace.trim().length > 0);
-        if (workspaces.length > 0) {
-          ideData[ide.snapshotKey] = { workspaces, workspaceCount: workspaces.length };
-        }
-      } catch (error) {
-        // IDE not installed or no workspaces open, skip silently
-        console.log(`No ${ide.displayName} workspaces found:`, error);
-      }
-    }
-
-    const terminalData: Record<string, { sessions: TerminalSession[]; sessionCount: number } | undefined> = {};
-
-    for (const terminal of terminals) {
-      if (openApps.includes(terminal.openAppKey)) {
-        toast.title = `Capturing ${terminal.displayName} sessions...`;
-        const openSessionsString = await getTerminalSessions(terminal.appName);
-        const sessions = parseTerminalSessions(openSessionsString);
-        if (sessions.length > 0) {
-          terminalData[terminal.snapshotKey] = { sessions, sessionCount: sessions.length };
-        }
-      }
-    }
-
     // Save the snapshot
     toast.title = "Saving snapshot...";
     const snapshotName = createSnapshotName();
@@ -161,12 +79,6 @@ export default async function Command() {
       arc: browserData.arc,
       brave: browserData.brave,
       safari: browserData.safari,
-      vscode: ideData.vscode,
-      cursor: ideData.cursor,
-      terminal: terminalData.terminal,
-      iterm2: terminalData.iterm2,
-      ghostty: terminalData.ghostty,
-      apps: appsToSave,
     });
     toast.style = Toast.Style.Success;
     toast.title = "Snapshot saved!";

@@ -8,21 +8,6 @@ export interface BrowserSnapshot {
   tabCount: number;
 }
 
-export interface TerminalSession {
-  directory: string;
-  command: string;
-}
-
-export interface TerminalSnapshot {
-  sessions: TerminalSession[];
-  sessionCount: number;
-}
-
-export interface IDESnapshot {
-  workspaces: string[];
-  workspaceCount: number;
-}
-
 export interface StateSnapshot {
   id: string;
   name: string;
@@ -33,12 +18,6 @@ export interface StateSnapshot {
   brave?: BrowserSnapshot;
   safari?: BrowserSnapshot;
   arc?: BrowserSnapshot;
-  vscode?: IDESnapshot;
-  cursor?: IDESnapshot;
-  terminal?: TerminalSnapshot;
-  iterm2?: TerminalSnapshot;
-  ghostty?: TerminalSnapshot;
-  apps?: string[];
 }
 
 export interface SavedStates {
