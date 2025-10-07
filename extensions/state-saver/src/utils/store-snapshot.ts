@@ -133,7 +133,10 @@ export async function updateStateName(id: string, newName: string): Promise<bool
  * @param updates - Partial snapshot data to update (keeps id, timestamp, and date from original)
  * @returns True if updated, false if not found
  */
-export async function updateStateSnapshot(id: string, updates: Partial<Omit<StateSnapshot, "id" | "timestamp" | "date">>): Promise<boolean> {
+export async function updateStateSnapshot(
+  id: string,
+  updates: Partial<Omit<StateSnapshot, "id" | "timestamp" | "date">>,
+): Promise<boolean> {
   const allStates = await getAllStates();
 
   if (!allStates[id]) {
