@@ -73,52 +73,68 @@ export default function Command() {
     }
   }
 
+  // Separate favorites from non-favorites
+  const favoriteSnapshots = snapshots.filter((s) => s.favorite).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const regularSnapshots = snapshots.filter((s) => !s.favorite).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
+  function renderSnapshot(snapshot: StateSnapshot) {
+    const totalTabs =
+      (snapshot.chrome?.tabCount || 0) +
+      (snapshot.arc?.tabCount || 0) +
+      (snapshot.brave?.tabCount || 0) +
+      (snapshot.safari?.tabCount || 0);
+
+    return (
+      <List.Item
+        key={snapshot.id}
+        icon={snapshot.favorite ? Icon.Star : Icon.AppWindow}
+        title={snapshot.name}
+        subtitle={`${totalTabs} tab${totalTabs === 1 ? "" : "s"}`}
+        accessories={[
+          ...(snapshot.favorite ? [{ icon: Icon.Star, tooltip: "Favorite" }] : []),
+          { text: snapshot.date },
+        ]}
+        actions={
+          <ActionPanel>
+            <Action
+              title="Open in New Window"
+              icon={Icon.PlusSquare}
+              onAction={() => handleOpenSnapshot(snapshot, true)}
+            />
+            <Action
+              title="Open in Current Window"
+              icon={Icon.AppWindow}
+              onAction={() => handleOpenSnapshot(snapshot, false)}
+              shortcut={{ modifiers: ["cmd"], key: "o" }}
+            />
+            <Action.CopyToClipboard
+              title="Copy URLs"
+              content={
+                [
+                  ...(snapshot.chrome?.urls || []),
+                  ...(snapshot.arc?.urls || []),
+                  ...(snapshot.brave?.urls || []),
+                  ...(snapshot.safari?.urls || []),
+                ].join("\n") || ""
+              }
+              shortcut={{ modifiers: ["cmd"], key: "c" }}
+            />
+          </ActionPanel>
+        }
+      />
+    );
+  }
+
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Search snapshots...">
-      {snapshots.map((snapshot) => {
-        const totalTabs =
-          (snapshot.chrome?.tabCount || 0) +
-          (snapshot.arc?.tabCount || 0) +
-          (snapshot.brave?.tabCount || 0) +
-          (snapshot.safari?.tabCount || 0);
-
-        return (
-          <List.Item
-            key={snapshot.id}
-            icon={Icon.AppWindow}
-            title={snapshot.name}
-            subtitle={`${totalTabs} tab${totalTabs === 1 ? "" : "s"}`}
-            accessories={[{ text: snapshot.date }]}
-            actions={
-              <ActionPanel>
-                <Action
-                  title="Open in New Window"
-                  icon={Icon.PlusSquare}
-                  onAction={() => handleOpenSnapshot(snapshot, true)}
-                />
-                <Action
-                  title="Open in Current Window"
-                  icon={Icon.AppWindow}
-                  onAction={() => handleOpenSnapshot(snapshot, false)}
-                  shortcut={{ modifiers: ["cmd"], key: "o" }}
-                />
-                <Action.CopyToClipboard
-                  title="Copy URLs"
-                  content={
-                    [
-                      ...(snapshot.chrome?.urls || []),
-                      ...(snapshot.arc?.urls || []),
-                      ...(snapshot.brave?.urls || []),
-                      ...(snapshot.safari?.urls || []),
-                    ].join("\n") || ""
-                  }
-                  shortcut={{ modifiers: ["cmd"], key: "c" }}
-                />
-              </ActionPanel>
-            }
-          />
-        );
-      })}
+      {favoriteSnapshots.length > 0 && (
+        <List.Section title="Favorites">{favoriteSnapshots.map(renderSnapshot)}</List.Section>
+      )}
+      {regularSnapshots.length > 0 && (
+        <List.Section title={favoriteSnapshots.length > 0 ? "All Snapshots" : undefined}>
+          {regularSnapshots.map(renderSnapshot)}
+        </List.Section>
+      )}
     </List>
   );
 }

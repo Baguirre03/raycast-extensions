@@ -1,13 +1,12 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "state-saver",
-  "title": "State Saver",
+  "name": "store-open-tabs",
+  "title": "Store Open Tabs",
   "description": "State Saver lets you capture and restore browser tabs with a single command. Save snapshots of your open tabs across Chrome, Arc, Safari, and Brave, and restore them instantly whenever you need.\n\nWhether you're switching between projects, resuming after a break, or managing multiple workflows, State Saver keeps your browser context intact so you can focus on what matters: doing your work, not setting it up.",
   "icon": "extension-icon.png",
   "author": "ben_aguirre",
   "platforms": [
-    "macOS",
-    "Windows"
+    "macOS"
   ],
   "categories": [
     "Productivity"
