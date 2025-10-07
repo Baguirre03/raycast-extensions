@@ -4,6 +4,7 @@
  */
 import { showToast, Toast, launchCommand, LaunchType } from "@raycast/api";
 import * as Browser from "./apps/browser";
+import * as IDE from "./apps/ide";
 import { getOpenApps } from "./utils/get-open-apps";
 import { saveStateSnapshot } from "./utils/store-snapshot";
 import { getTerminalSessions, parseTerminalSessions, TerminalSession } from "./apps/terminal";
@@ -20,7 +21,75 @@ enum OpenApps {
   Terminal = "Terminal",
   Brave = "Brave Browser",
   Safari = "Safari",
+  VSCode = "Visual Studio Code",
+  Cursor = "Cursor",
 }
+
+const createSnapshotName = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const year = String(now.getFullYear()).slice(-2);
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  return `snapshot-${month}/${day}/${year}-${hours}:${minutes}`;
+};
+
+// Browser capture map
+const browsers = [
+  {
+    openAppKey: OpenApps.Chrome,
+    browserKey: Browser.BROWSERS.CHROME,
+    displayName: "Chrome",
+    snapshotKey: "chrome" as const,
+  },
+  { openAppKey: OpenApps.Arc, browserKey: Browser.BROWSERS.ARC, displayName: "Arc", snapshotKey: "arc" as const },
+  {
+    openAppKey: OpenApps.Brave,
+    browserKey: Browser.BROWSERS.BRAVE,
+    displayName: "Brave",
+    snapshotKey: "brave" as const,
+  },
+  {
+    openAppKey: OpenApps.Safari,
+    browserKey: Browser.BROWSERS.SAFARI,
+    displayName: "Safari",
+    snapshotKey: "safari" as const,
+  },
+];
+
+// IDE capture map
+const ides = [
+  {
+    openAppKey: OpenApps.VSCode,
+    ideKey: IDE.IDES.VSCODE,
+    displayName: "VSCode",
+    snapshotKey: "vscode" as const,
+  },
+  {
+    openAppKey: OpenApps.Cursor,
+    ideKey: IDE.IDES.CURSOR,
+    displayName: "Cursor",
+    snapshotKey: "cursor" as const,
+  },
+];
+
+// Terminal capture map
+const terminals = [
+  {
+    openAppKey: OpenApps.Terminal,
+    appName: "Terminal" as const,
+    displayName: "Terminal",
+    snapshotKey: "terminal" as const,
+  },
+  { openAppKey: OpenApps.ITerm, appName: "iTerm2" as const, displayName: "iTerm2", snapshotKey: "iterm2" as const },
+  {
+    openAppKey: OpenApps.Ghostyy,
+    appName: "ghostty" as const,
+    displayName: "Ghostty",
+    snapshotKey: "ghostty" as const,
+  },
+];
 
 export default async function Command() {
   const toast = await showToast({
@@ -30,8 +99,6 @@ export default async function Command() {
 
   try {
     const openApps = await getOpenApps();
-
-    // Filter apps to save (exclude system apps, only save user apps)
     const appsToSave = openApps.filter((app) => {
       return [
         OpenApps.Obsidian,
@@ -40,29 +107,6 @@ export default async function Command() {
         // Add more apps you want to restore
       ].includes(app as OpenApps);
     });
-
-    // Browser capture map
-    const browsers = [
-      {
-        openAppKey: OpenApps.Chrome,
-        browserKey: Browser.BROWSERS.CHROME,
-        displayName: "Chrome",
-        snapshotKey: "chrome" as const,
-      },
-      { openAppKey: OpenApps.Arc, browserKey: Browser.BROWSERS.ARC, displayName: "Arc", snapshotKey: "arc" as const },
-      {
-        openAppKey: OpenApps.Brave,
-        browserKey: Browser.BROWSERS.BRAVE,
-        displayName: "Brave",
-        snapshotKey: "brave" as const,
-      },
-      {
-        openAppKey: OpenApps.Safari,
-        browserKey: Browser.BROWSERS.SAFARI,
-        displayName: "Safari",
-        snapshotKey: "safari" as const,
-      },
-    ];
 
     const browserData: Record<string, { urls: string[]; tabCount: number } | undefined> = {};
 
@@ -77,22 +121,22 @@ export default async function Command() {
       }
     }
 
-    // Terminal capture map
-    const terminals = [
-      {
-        openAppKey: OpenApps.Terminal,
-        appName: "Terminal" as const,
-        displayName: "Terminal",
-        snapshotKey: "terminal" as const,
-      },
-      { openAppKey: OpenApps.ITerm, appName: "iTerm2" as const, displayName: "iTerm2", snapshotKey: "iterm2" as const },
-      {
-        openAppKey: OpenApps.Ghostyy,
-        appName: "ghostty" as const,
-        displayName: "Ghostty",
-        snapshotKey: "ghostty" as const,
-      },
-    ];
+    const ideData: Record<string, { workspaces: string[]; workspaceCount: number } | undefined> = {};
+
+    // Check IDEs regardless of open apps list (VS Code shows as "Electron", which is ambiguous)
+    for (const ide of ides) {
+      try {
+        toast.title = `Capturing ${ide.displayName} workspaces...`;
+        const openWorkspacesString = await IDE.getOpenWorkspaces(ide.ideKey);
+        const workspaces = openWorkspacesString.split(", ").filter((workspace) => workspace.trim().length > 0);
+        if (workspaces.length > 0) {
+          ideData[ide.snapshotKey] = { workspaces, workspaceCount: workspaces.length };
+        }
+      } catch (error) {
+        // IDE not installed or no workspaces open, skip silently
+        console.log(`No ${ide.displayName} workspaces found:`, error);
+      }
+    }
 
     const terminalData: Record<string, { sessions: TerminalSession[]; sessionCount: number } | undefined> = {};
 
@@ -109,13 +153,7 @@ export default async function Command() {
 
     // Save the snapshot
     toast.title = "Saving snapshot...";
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    const year = String(now.getFullYear()).slice(-2);
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const snapshotName = `snapshot-${month}/${day}/${year}-${hours}:${minutes}`;
+    const snapshotName = createSnapshotName();
 
     await saveStateSnapshot({
       name: snapshotName,
@@ -123,6 +161,8 @@ export default async function Command() {
       arc: browserData.arc,
       brave: browserData.brave,
       safari: browserData.safari,
+      vscode: ideData.vscode,
+      cursor: ideData.cursor,
       terminal: terminalData.terminal,
       iterm2: terminalData.iterm2,
       ghostty: terminalData.ghostty,

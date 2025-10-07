@@ -104,6 +104,64 @@ end tell
 };
 
 // ============================================================================
+// IDE Scripts (VS Code, Cursor, etc.)
+// ============================================================================
+
+interface GetIDEWorkspacesParams {
+  appName: string;
+}
+
+export const GET_IDE_WORKSPACES_SCRIPT = ({ appName }: GetIDEWorkspacesParams) => {
+  console.log("GET_IDE_WORKSPACES_SCRIPT", appName);
+  // Determine the config directory based on the IDE
+  const configDir = appName === "Visual Studio Code" ? "Code" : "Cursor";
+
+  return `
+do shell script "python3 -c \\"import json, os
+storage_file = os.path.expanduser('~/Library/Application Support/${configDir}/User/globalStorage/storage.json')
+if not os.path.exists(storage_file):
+    print('')
+else:
+    with open(storage_file, 'r') as f:
+        data = json.load(f)
+        windows_state = data.get('windowsState', {})
+        paths = []
+        
+        # Get the last active window folder
+        last_active = windows_state.get('lastActiveWindow', {})
+        folder_uri = last_active.get('folder', '') or last_active.get('workspace', {}).get('configPath', '')
+        if folder_uri and folder_uri.startswith('file://'):
+            paths.append(folder_uri[7:])
+        
+        # Get all other opened windows
+        opened_windows = windows_state.get('openedWindows', [])
+        for window in opened_windows:
+            folder_uri = window.get('folder', '') or window.get('workspace', {}).get('configPath', '')
+            if folder_uri and folder_uri.startswith('file://'):
+                paths.append(folder_uri[7:])
+        
+        print(', '.join(paths))
+\\""
+`.trim();
+};
+
+interface ReopenIDEWorkspacesParams {
+  appName: string;
+  workspaces: string[];
+  inNewWindow: boolean;
+}
+
+export const REOPEN_IDE_WORKSPACES_SCRIPT = ({ appName, workspaces, inNewWindow }: ReopenIDEWorkspacesParams) => {
+  // For VS Code and Cursor, we use the 'code' or 'cursor' CLI command
+  const cliCommand = appName === "Visual Studio Code" ? "code" : "cursor";
+  const newWindowFlag = inNewWindow ? " -n" : "";
+
+  return `
+do shell script "${workspaces.map((workspace) => `${cliCommand}${newWindowFlag} '${workspace.replace(/'/g, "'\\''")}'`).join(" && ")}"
+  `.trim();
+};
+
+// ============================================================================
 // Open App Scripts
 // ============================================================================
 
