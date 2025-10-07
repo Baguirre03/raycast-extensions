@@ -18,7 +18,7 @@
       "name": "save-current-snapshot",
       "title": "Save State",
       "subtitle": "Saves the current state of your computer",
-      "description": "Saves the current state of your computer enabling you to save it and be used later (opening everything you need) ",
+      "description": "Saves the current state of your computer enabling you to save it and be used later (opening everything you need)",
       "mode": "no-view"
     },
     {

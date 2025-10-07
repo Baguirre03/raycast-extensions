@@ -40,7 +40,6 @@ function EditSnapshotForm({ snapshot, onUpdate }: { snapshot: StateSnapshot; onU
         date: snapshot.date,
       };
 
-      // Update counts for browsers
       if (updates.chrome) {
         updates.chrome.tabCount = updates.chrome.urls?.length || 0;
       }
