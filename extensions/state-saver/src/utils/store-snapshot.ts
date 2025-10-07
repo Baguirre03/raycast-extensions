@@ -128,6 +128,33 @@ export async function updateStateName(id: string, newName: string): Promise<bool
 }
 
 /**
+ * Update an entire state snapshot
+ * @param id - The snapshot ID
+ * @param updates - Partial snapshot data to update (keeps id, timestamp, and date from original)
+ * @returns True if updated, false if not found
+ */
+export async function updateStateSnapshot(id: string, updates: Partial<Omit<StateSnapshot, "id" | "timestamp" | "date">>): Promise<boolean> {
+  const allStates = await getAllStates();
+
+  if (!allStates[id]) {
+    return false;
+  }
+
+  // Merge updates while preserving id, timestamp, and date
+  allStates[id] = {
+    ...allStates[id],
+    ...updates,
+    id: allStates[id].id,
+    timestamp: allStates[id].timestamp,
+    date: allStates[id].date,
+  };
+
+  await LocalStorage.setItem(STORAGE_KEY, JSON.stringify(allStates));
+
+  return true;
+}
+
+/**
  * Clear all saved states (use with caution!)
  */
 export async function clearAllStates(): Promise<void> {

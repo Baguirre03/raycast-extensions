@@ -29,13 +29,6 @@ export default async function Command() {
   });
 
   try {
-    let chromeUrls: string[] = [];
-    let arcUrls: string[] = [];
-    let braveUrls: string[] = [];
-    let safariUrls: string[] = [];
-    let terminalSessions: TerminalSession[] = [];
-    let iterm2Sessions: TerminalSession[] = [];
-    let ghosttySessions: TerminalSession[] = [];
     const openApps = await getOpenApps();
 
     // Filter apps to save (exclude system apps, only save user apps)
@@ -48,61 +41,83 @@ export default async function Command() {
       ].includes(app as OpenApps);
     });
 
-    if (openApps.includes(OpenApps.Chrome)) {
-      toast.title = "Capturing Chrome tabs...";
-      const openTabsString = await Browser.getOpenTabs(Browser.BROWSERS.CHROME);
-      chromeUrls = openTabsString.split(", ").filter((url) => url.trim().length > 0);
+    // Browser capture map
+    const browsers = [
+      {
+        openAppKey: OpenApps.Chrome,
+        browserKey: Browser.BROWSERS.CHROME,
+        displayName: "Chrome",
+        snapshotKey: "chrome" as const,
+      },
+      { openAppKey: OpenApps.Arc, browserKey: Browser.BROWSERS.ARC, displayName: "Arc", snapshotKey: "arc" as const },
+      {
+        openAppKey: OpenApps.Brave,
+        browserKey: Browser.BROWSERS.BRAVE,
+        displayName: "Brave",
+        snapshotKey: "brave" as const,
+      },
+      {
+        openAppKey: OpenApps.Safari,
+        browserKey: Browser.BROWSERS.SAFARI,
+        displayName: "Safari",
+        snapshotKey: "safari" as const,
+      },
+    ];
+
+    const browserData: Record<string, { urls: string[]; tabCount: number } | undefined> = {};
+
+    for (const browser of browsers) {
+      if (openApps.includes(browser.openAppKey)) {
+        toast.title = `Capturing ${browser.displayName} tabs...`;
+        const openTabsString = await Browser.getOpenTabs(browser.browserKey);
+        const urls = openTabsString.split(", ").filter((url) => url.trim().length > 0);
+        if (urls.length > 0) {
+          browserData[browser.snapshotKey] = { urls, tabCount: urls.length };
+        }
+      }
     }
 
-    if (openApps.includes(OpenApps.Arc)) {
-      toast.title = "Capturing Arc tabs...";
-      const openTabsString = await Browser.getOpenTabs(Browser.BROWSERS.ARC);
-      arcUrls = openTabsString.split(", ").filter((url) => url.trim().length > 0);
-    }
+    // Terminal capture map
+    const terminals = [
+      {
+        openAppKey: OpenApps.Terminal,
+        appName: "Terminal" as const,
+        displayName: "Terminal",
+        snapshotKey: "terminal" as const,
+      },
+      { openAppKey: OpenApps.ITerm, appName: "iTerm2" as const, displayName: "iTerm2", snapshotKey: "iterm2" as const },
+      {
+        openAppKey: OpenApps.Ghostyy,
+        appName: "ghostty" as const,
+        displayName: "Ghostty",
+        snapshotKey: "ghostty" as const,
+      },
+    ];
 
-    if (openApps.includes(OpenApps.Brave)) {
-      toast.title = "Capturing Brave tabs...";
-      const openTabsString = await Browser.getOpenTabs(Browser.BROWSERS.BRAVE);
-      braveUrls = openTabsString.split(", ").filter((url) => url.trim().length > 0);
-    }
+    const terminalData: Record<string, { sessions: TerminalSession[]; sessionCount: number } | undefined> = {};
 
-    if (openApps.includes(OpenApps.Safari)) {
-      toast.title = "Capturing Safari tabs...";
-      const openTabsString = await Browser.getOpenTabs(Browser.BROWSERS.SAFARI);
-      safariUrls = openTabsString.split(", ").filter((url) => url.trim().length > 0);
-    }
-
-    if (openApps.includes(OpenApps.Terminal)) {
-      toast.title = "Capturing Terminal sessions...";
-      const openSessionsString = await getTerminalSessions("Terminal");
-      terminalSessions = parseTerminalSessions(openSessionsString);
-    }
-
-    if (openApps.includes(OpenApps.ITerm)) {
-      toast.title = "Capturing iTerm2 sessions...";
-      const openSessionsString = await getTerminalSessions("iTerm2");
-      iterm2Sessions = parseTerminalSessions(openSessionsString);
-    }
-
-    if (openApps.includes(OpenApps.Ghostyy)) {
-      toast.title = "Capturing Ghostty sessions...";
-      const openSessionsString = await getTerminalSessions("ghostty");
-      ghosttySessions = parseTerminalSessions(openSessionsString);
+    for (const terminal of terminals) {
+      if (openApps.includes(terminal.openAppKey)) {
+        toast.title = `Capturing ${terminal.displayName} sessions...`;
+        const openSessionsString = await getTerminalSessions(terminal.appName);
+        const sessions = parseTerminalSessions(openSessionsString);
+        if (sessions.length > 0) {
+          terminalData[terminal.snapshotKey] = { sessions, sessionCount: sessions.length };
+        }
+      }
     }
 
     // Save the snapshot
     toast.title = "Saving snapshot...";
     await saveStateSnapshot({
       name: `Snapshot ${Date.now()}`,
-      chrome: chromeUrls.length > 0 ? { urls: chromeUrls, tabCount: chromeUrls.length } : undefined,
-      arc: arcUrls.length > 0 ? { urls: arcUrls, tabCount: arcUrls.length } : undefined,
-      brave: braveUrls.length > 0 ? { urls: braveUrls, tabCount: braveUrls.length } : undefined,
-      safari: safariUrls.length > 0 ? { urls: safariUrls, tabCount: safariUrls.length } : undefined,
-      terminal:
-        terminalSessions.length > 0 ? { sessions: terminalSessions, sessionCount: terminalSessions.length } : undefined,
-      iterm2: iterm2Sessions.length > 0 ? { sessions: iterm2Sessions, sessionCount: iterm2Sessions.length } : undefined,
-      ghostty:
-        ghosttySessions.length > 0 ? { sessions: ghosttySessions, sessionCount: ghosttySessions.length } : undefined,
+      chrome: browserData.chrome,
+      arc: browserData.arc,
+      brave: browserData.brave,
+      safari: browserData.safari,
+      terminal: terminalData.terminal,
+      iterm2: terminalData.iterm2,
+      ghostty: terminalData.ghostty,
       apps: appsToSave,
     });
   } catch (error) {

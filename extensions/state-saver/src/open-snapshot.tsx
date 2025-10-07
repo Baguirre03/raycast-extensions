@@ -47,52 +47,37 @@ export default function Command() {
         }
       }
 
-      // Restore Chrome tabs
-      if (snapshot.chrome && snapshot.chrome.urls.length > 0) {
-        toast.title = "Restoring Chrome tabs...";
-        await Browser.reOpenTabs(Browser.BROWSERS.CHROME, snapshot.chrome.urls, inNewWindow);
-        restored.push(`${snapshot.chrome.urls.length} Chrome tabs`);
+      // Browser restoration map
+      const browsers = [
+        { key: "chrome" as const, appName: Browser.BROWSERS.CHROME, displayName: "Chrome" },
+        { key: "arc" as const, appName: Browser.BROWSERS.ARC, displayName: "Arc" },
+        { key: "brave" as const, appName: Browser.BROWSERS.BRAVE, displayName: "Brave" },
+        { key: "safari" as const, appName: Browser.BROWSERS.SAFARI, displayName: "Safari" },
+      ];
+
+      for (const browser of browsers) {
+        const browserData = snapshot[browser.key];
+        if (browserData && browserData.urls.length > 0) {
+          toast.title = `Restoring ${browser.displayName} tabs...`;
+          await Browser.reOpenTabs(browser.appName, browserData.urls, inNewWindow);
+          restored.push(`${browserData.urls.length} ${browser.displayName} tabs`);
+        }
       }
 
-      // Restore Arc tabs
-      if (snapshot.arc && snapshot.arc.urls.length > 0) {
-        toast.title = "Restoring Arc tabs...";
-        await Browser.reOpenTabs(Browser.BROWSERS.ARC, snapshot.arc.urls, inNewWindow);
-        restored.push(`${snapshot.arc.urls.length} Arc tabs`);
-      }
+      // Terminal restoration map
+      const terminals = [
+        { key: "terminal" as const, appName: "Terminal" as const, displayName: "Terminal" },
+        { key: "iterm2" as const, appName: "iTerm2" as const, displayName: "iTerm2" },
+        { key: "ghostty" as const, appName: "ghostty" as const, displayName: "Ghostty" },
+      ];
 
-      // Restore Brave tabs
-      if (snapshot.brave && snapshot.brave.urls.length > 0) {
-        toast.title = "Restoring Brave tabs...";
-        await Browser.reOpenTabs(Browser.BROWSERS.BRAVE, snapshot.brave.urls, inNewWindow);
-        restored.push(`${snapshot.brave.urls.length} Brave tabs`);
-      }
-
-      if (snapshot.safari && snapshot.safari.urls.length > 0) {
-        toast.title = "Restoring Safari tabs...";
-        await Browser.reOpenTabs(Browser.BROWSERS.SAFARI, snapshot.safari.urls, inNewWindow);
-        restored.push(`${snapshot.safari.urls.length} Safari tabs`);
-      }
-
-      // Restore Terminal.app sessions
-      if (snapshot.terminal && snapshot.terminal.sessions.length > 0) {
-        toast.title = "Restoring Terminal sessions...";
-        await restoreTerminalSessions(snapshot.terminal.sessions, "Terminal", inNewWindow);
-        restored.push(`${snapshot.terminal.sessions.length} Terminal`);
-      }
-
-      // Restore iTerm2 sessions
-      if (snapshot.iterm2 && snapshot.iterm2.sessions.length > 0) {
-        toast.title = "Restoring iTerm2 sessions...";
-        await restoreTerminalSessions(snapshot.iterm2.sessions, "iTerm2", inNewWindow);
-        restored.push(`${snapshot.iterm2.sessions.length} iTerm2`);
-      }
-
-      // Restore Ghostty sessions
-      if (snapshot.ghostty && snapshot.ghostty.sessions.length > 0) {
-        toast.title = "Restoring Ghostty sessions...";
-        await restoreTerminalSessions(snapshot.ghostty.sessions, "ghostty", inNewWindow);
-        restored.push(`${snapshot.ghostty.sessions.length} Ghostty`);
+      for (const terminal of terminals) {
+        const terminalData = snapshot[terminal.key];
+        if (terminalData && terminalData.sessions.length > 0) {
+          toast.title = `Restoring ${terminal.displayName} sessions...`;
+          await restoreTerminalSessions(terminalData.sessions, terminal.appName, inNewWindow);
+          restored.push(`${terminalData.sessions.length} ${terminal.displayName}`);
+        }
       }
 
       if (restored.length === 0) {
@@ -115,39 +100,54 @@ export default function Command() {
 
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Search snapshots...">
-      {snapshots.map((snapshot) => (
-        <List.Item
-          key={snapshot.id}
-          icon={Icon.AppWindow}
-          title={snapshot.name}
-          subtitle={`${snapshot.apps?.length || 0} apps • ${(snapshot.chrome?.tabCount || 0) + (snapshot.arc?.tabCount || 0)} tabs • ${(snapshot.terminal?.sessionCount || 0) + (snapshot.iterm2?.sessionCount || 0) + (snapshot.ghostty?.sessionCount || 0)} terminal sessions`}
-          accessories={[{ text: snapshot.date }]}
-          actions={
-            <ActionPanel>
-              <Action
-                title="Open in New Window"
-                icon={Icon.PlusSquare}
-                onAction={() => handleOpenSnapshot(snapshot, true)}
-              />
-              <Action
-                title="Open in Current Window"
-                icon={Icon.AppWindow}
-                onAction={() => handleOpenSnapshot(snapshot, false)}
-                shortcut={{ modifiers: ["cmd"], key: "o" }}
-              />
-              <Action.CopyToClipboard
-                title="Copy URLs"
-                content={
-                  [...(snapshot.chrome?.urls || []), ...(snapshot.arc?.urls || [])].join("\n") ||
-                  snapshot.terminal?.sessions.join("\n") ||
-                  ""
-                }
-                shortcut={{ modifiers: ["cmd"], key: "c" }}
-              />
-            </ActionPanel>
-          }
-        />
-      ))}
+      {snapshots.map((snapshot) => {
+        const totalTabs =
+          (snapshot.chrome?.tabCount || 0) +
+          (snapshot.arc?.tabCount || 0) +
+          (snapshot.brave?.tabCount || 0) +
+          (snapshot.safari?.tabCount || 0);
+        const totalTerminals =
+          (snapshot.terminal?.sessionCount || 0) +
+          (snapshot.iterm2?.sessionCount || 0) +
+          (snapshot.ghostty?.sessionCount || 0);
+
+        return (
+          <List.Item
+            key={snapshot.id}
+            icon={Icon.AppWindow}
+            title={snapshot.name}
+            subtitle={`${snapshot.apps?.length || 0} apps • ${totalTabs} tabs • ${totalTerminals} terminal sessions`}
+            accessories={[{ text: snapshot.date }]}
+            actions={
+              <ActionPanel>
+                <Action
+                  title="Open in New Window"
+                  icon={Icon.PlusSquare}
+                  onAction={() => handleOpenSnapshot(snapshot, true)}
+                />
+                <Action
+                  title="Open in Current Window"
+                  icon={Icon.AppWindow}
+                  onAction={() => handleOpenSnapshot(snapshot, false)}
+                  shortcut={{ modifiers: ["cmd"], key: "o" }}
+                />
+                <Action.CopyToClipboard
+                  title="Copy URLs"
+                  content={
+                    [
+                      ...(snapshot.chrome?.urls || []),
+                      ...(snapshot.arc?.urls || []),
+                      ...(snapshot.brave?.urls || []),
+                      ...(snapshot.safari?.urls || []),
+                    ].join("\n") || ""
+                  }
+                  shortcut={{ modifiers: ["cmd"], key: "c" }}
+                />
+              </ActionPanel>
+            }
+          />
+        );
+      })}
     </List>
   );
 }
