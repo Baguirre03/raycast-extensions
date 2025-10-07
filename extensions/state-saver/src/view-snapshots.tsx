@@ -11,96 +11,151 @@ import {
   toggleFavorite,
   clearAllStates,
 } from "./utils/store-snapshot";
-import { StateSnapshot } from "./utils/types";
+import { StateSnapshot, TabItem } from "./utils/types";
+
+interface BrowserTabs {
+  chrome: TabItem[];
+  arc: TabItem[];
+  brave: TabItem[];
+  safari: TabItem[];
+}
 
 function EditSnapshotForm({ snapshot, onUpdate }: { snapshot: StateSnapshot; onUpdate: () => void }) {
   const { pop } = useNavigation();
-  const [jsonText, setJsonText] = useState(JSON.stringify(snapshot, null, 2));
-  const [error, setError] = useState<string | undefined>();
+  const [name, setName] = useState(snapshot.name);
+  const [tabs, setTabs] = useState<BrowserTabs>(() => ({
+    chrome: snapshot.chrome?.tabs || [],
+    arc: snapshot.arc?.tabs || [],
+    brave: snapshot.brave?.tabs || [],
+    safari: snapshot.safari?.tabs || [],
+  }));
+  const [newUrls, setNewUrls] = useState({ chrome: "", arc: "", brave: "", safari: "" });
+
+  function toggleTab(browser: keyof BrowserTabs, index: number) {
+    setTabs((prev) => ({
+      ...prev,
+      [browser]: prev[browser].map((tab, i) => (i === index ? { ...tab, enabled: !tab.enabled } : tab)),
+    }));
+  }
+
+  function addUrl(browser: keyof BrowserTabs) {
+    const url = newUrls[browser].trim();
+    if (!url) return;
+
+    setTabs((prev) => ({
+      ...prev,
+      [browser]: [...prev[browser], { url, enabled: true }],
+    }));
+    setNewUrls((prev) => ({ ...prev, [browser]: "" }));
+  }
 
   async function handleSubmit() {
+    // Check if there are any pending URLs to add
+    const browsers: Array<keyof BrowserTabs> = ["chrome", "arc", "brave", "safari"];
+    const hasPendingUrls = browsers.some((browser) => newUrls[browser].trim());
+
+    // If there are pending URLs, add them to the list instead of saving
+    if (hasPendingUrls) {
+      for (const browser of browsers) {
+        const url = newUrls[browser].trim();
+        if (url) {
+          addUrl(browser);
+        }
+      }
+      return; // Don't save yet, just add the URLs
+    }
+
+    // Otherwise, save the snapshot
     const toast = await showToast({
       style: Toast.Style.Animated,
       title: "Updating snapshot...",
     });
 
     try {
-      // Parse and validate JSON
-      const parsed = JSON.parse(jsonText) as StateSnapshot;
-
-      if (!parsed.name?.trim()) {
+      if (!name.trim()) {
         throw new Error("Name cannot be empty");
       }
 
-      // Preserve id, timestamp, and date from original
-      const updates = {
-        ...parsed,
+      // Build updated snapshot with all tabs (enabled and disabled)
+      const updates: StateSnapshot = {
         id: snapshot.id,
+        name: name.trim(),
         timestamp: snapshot.timestamp,
         date: snapshot.date,
+        favorite: snapshot.favorite,
       };
 
-      if (updates.chrome) {
-        updates.chrome.tabCount = updates.chrome.urls?.length || 0;
-      }
-      if (updates.arc) {
-        updates.arc.tabCount = updates.arc.urls?.length || 0;
-      }
-      if (updates.brave) {
-        updates.brave.tabCount = updates.brave.urls?.length || 0;
-      }
-      if (updates.safari) {
-        updates.safari.tabCount = updates.safari.urls?.length || 0;
+      for (const browser of browsers) {
+        const browserTabs = tabs[browser];
+        if (browserTabs.length > 0) {
+          const enabledCount = browserTabs.filter((tab) => tab.enabled).length;
+          updates[browser] = {
+            tabs: browserTabs,
+            tabCount: enabledCount,
+          };
+        }
       }
 
       await updateStateSnapshot(snapshot.id, updates);
       toast.style = Toast.Style.Success;
       toast.title = "Snapshot updated!";
-      setError(undefined);
       onUpdate();
       pop();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Invalid JSON";
-      setError(errorMessage);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       toast.style = Toast.Style.Failure;
       toast.title = "Failed to update snapshot";
       toast.message = errorMessage;
     }
   }
 
+  const browsers: Array<{ key: keyof BrowserTabs; label: string; icon: Icon }> = [
+    { key: "chrome", label: "Chrome", icon: Icon.Globe },
+    { key: "arc", label: "Arc", icon: Icon.Globe },
+    { key: "brave", label: "Brave", icon: Icon.Globe },
+    { key: "safari", label: "Safari", icon: Icon.Globe },
+  ];
   return (
     <Form
       actions={
         <ActionPanel>
           <Action.SubmitForm title="Save Changes" icon={Icon.Check} onSubmit={handleSubmit} />
-          <Action
-            title="Reset to Original"
-            icon={Icon.Undo}
-            onAction={() => {
-              setJsonText(JSON.stringify(snapshot, null, 2));
-              setError(undefined);
-            }}
-            shortcut={{ modifiers: ["cmd"], key: "r" }}
-          />
         </ActionPanel>
       }
     >
-      <Form.Description
-        title="Instructions"
-        text="Edit the JSON directly. ID, timestamp, and date cannot be changed."
+      <Form.Description text="Edit your snapshot name and manage tabs. Uncheck tabs to exclude them when restoring." />
+      <Form.TextField
+        id="name"
+        title="Snapshot Name"
+        placeholder="Enter snapshot name"
+        value={name}
+        onChange={setName}
       />
-      {error && <Form.Description title="Error" text={error} />}
-      <Form.TextArea
-        id="json"
-        title="Snapshot JSON"
-        value={jsonText}
-        onChange={(value) => {
-          setJsonText(value);
-          setError(undefined);
-        }}
-        placeholder="Enter valid JSON"
-        enableMarkdown={false}
-      />
+      <Form.Separator />
+      {browsers.map((browser) => {
+        const browserTabs = tabs[browser.key];
+        if (browserTabs.length === 0) {
+          return null; // Don't show empty browsers
+        }
+
+        return [
+          <Form.Description
+            key={`${browser.key}-section`}
+            title={`${browser.label} Tab ${browserTabs.length === 1 ? "" : "s"}`}
+            text=""
+          />,
+          ...browserTabs.map((tab, index) => (
+            <Form.Checkbox
+              key={`${browser.key}-${index}`}
+              id={`${browser.key}-${index}`}
+              label={tab.url}
+              value={!tab.enabled}
+              onChange={() => toggleTab(browser.key, index)}
+              info={`Click to ${tab.enabled ? "disable" : "enable"} this tab`}
+            />
+          )),
+        ];
+      })}
     </Form>
   );
 }
@@ -144,10 +199,12 @@ export default function Command() {
 
     for (const browser of browsers) {
       const browserData = snapshot[browser.key];
-      if (browserData && browserData.urls.length > 0) {
-        sections.push(`## ${browser.displayName} (${browserData.tabCount} tabs)`);
+      if (browserData && browserData.tabs && browserData.tabs.length > 0) {
+        sections.push(
+          `## ${browser.displayName} (${browserData.tabCount} Enabled ${browserData.tabCount === 1 ? "tab" : "tabs"})`,
+        );
         sections.push("");
-        sections.push(browserData.urls.map((url, i) => `${i + 1}. ${url}`).join("\n"));
+        sections.push(browserData.tabs.map((tab, i) => `${i + 1}. ${tab.url}`).join("\n"));
         sections.push("");
       }
     }
@@ -227,11 +284,8 @@ export default function Command() {
       toast.message = error instanceof Error ? error.message : "Unknown error";
     }
   }
-
-  // Separate favorites from non-favorites
   const favoriteSnapshots = snapshots.filter((s) => s.favorite).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   const regularSnapshots = snapshots.filter((s) => !s.favorite).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-
   function renderSnapshot(snapshot: StateSnapshot) {
     return (
       <List.Item

@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "store-open-tabs",
-  "title": "Store Open Tabs",
-  "description": "State Saver lets you capture and restore browser tabs with a single command. Save snapshots of your open tabs across Chrome, Arc, Safari, and Brave, and restore them instantly whenever you need.\n\nWhether you're switching between projects, resuming after a break, or managing multiple workflows, State Saver keeps your browser context intact so you can focus on what matters: doing your work, not setting it up.",
+  "name": "tab-snapshots",
+  "title": "Tab Snapshots",
+  "description": "Tab Snapshots lets you capture and restore browser tabs with a single command. Save snapshots of your open tabs across Chrome, Arc, Safari, and Brave, and restore them instantly whenever you need.\n\nWhether you're switching between projects, resuming after a break, or managing multiple workflows, Tab Snapshots keeps your browser context intact so you can focus on what matters: doing your work, not setting it up.",
   "icon": "extension-icon.png",
   "author": "ben_aguirre",
   "platforms": [
@@ -16,21 +16,18 @@
     {
       "name": "save-current-snapshot",
       "title": "Save Browser Tabs",
-      "subtitle": "Save snapshots of your browser tabs",
       "description": "Captures all open tabs from Chrome, Arc, Safari, and Brave browsers and saves them as a snapshot",
       "mode": "no-view"
     },
     {
       "name": "open-snapshot",
       "title": "Restore Browser Tabs",
-      "subtitle": "Restore browser tabs from a saved snapshot",
       "description": "Select and restore browser tabs from a saved snapshot",
       "mode": "view"
     },
     {
       "name": "view-snapshots",
       "title": "View Snapshots",
-      "subtitle": "View all saved state snapshots",
       "description": "Display and manage all saved state snapshots with their details",
       "mode": "view"
     }

@@ -2,8 +2,13 @@
  * Type definitions for State Saver
  */
 
+export interface TabItem {
+  url: string;
+  enabled: boolean;
+}
+
 export interface BrowserSnapshot {
-  urls: string[];
+  tabs: TabItem[];
   windowCount?: number;
   tabCount: number;
 }

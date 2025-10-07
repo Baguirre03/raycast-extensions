@@ -56,7 +56,10 @@ export default async function Command() {
   try {
     const openApps = await getOpenApps();
 
-    const browserData: Record<string, { urls: string[]; tabCount: number } | undefined> = {};
+    const browserData: Record<
+      string,
+      { tabs: Array<{ url: string; enabled: boolean }>; tabCount: number } | undefined
+    > = {};
 
     for (const browser of browsers) {
       if (openApps.includes(browser.openAppKey)) {
@@ -64,7 +67,10 @@ export default async function Command() {
         const openTabsString = await Browser.getOpenTabs(browser.browserKey);
         const urls = openTabsString.split(", ").filter((url) => url.trim().length > 0);
         if (urls.length > 0) {
-          browserData[browser.snapshotKey] = { urls, tabCount: urls.length };
+          browserData[browser.snapshotKey] = {
+            tabs: urls.map((url) => ({ url, enabled: true })),
+            tabCount: urls.length,
+          };
         }
       }
     }

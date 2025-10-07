@@ -46,19 +46,21 @@ export default function Command() {
 
       for (const browser of browsers) {
         const browserData = snapshot[browser.key];
-        if (browserData && browserData.urls.length > 0) {
-          toast.title = `Restoring ${browser.displayName} tabs...`;
-          await Browser.reOpenTabs(browser.appName, browserData.urls, inNewWindow);
-          restored.push(
-            `${browserData.urls.length} ${browser.displayName} tab${browserData.urls.length === 1 ? "" : "s"}`,
-          );
+        if (browserData && browserData.tabs) {
+          const urlsToOpen = browserData.tabs.filter((tab) => tab.enabled).map((tab) => tab.url);
+
+          if (urlsToOpen.length > 0) {
+            toast.title = `Restoring ${browser.displayName} tabs...`;
+            await Browser.reOpenTabs(browser.appName, urlsToOpen, inNewWindow);
+            restored.push(`${urlsToOpen.length} ${browser.displayName} tab${urlsToOpen.length === 1 ? "" : "s"}`);
+          }
         }
       }
 
       if (restored.length === 0) {
         toast.style = Toast.Style.Failure;
         toast.title = "Nothing to restore";
-        toast.message = "This snapshot has no browser tabs";
+        toast.message = "This snapshot has no enabled browser tabs";
         return;
       }
 
@@ -106,18 +108,6 @@ export default function Command() {
               icon={Icon.AppWindow}
               onAction={() => handleOpenSnapshot(snapshot, false)}
               shortcut={{ modifiers: ["cmd"], key: "o" }}
-            />
-            <Action.CopyToClipboard
-              title="Copy URLs"
-              content={
-                [
-                  ...(snapshot.chrome?.urls || []),
-                  ...(snapshot.arc?.urls || []),
-                  ...(snapshot.brave?.urls || []),
-                  ...(snapshot.safari?.urls || []),
-                ].join("\n") || ""
-              }
-              shortcut={{ modifiers: ["cmd"], key: "c" }}
             />
           </ActionPanel>
         }
